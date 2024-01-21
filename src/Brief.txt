@@ -1,0 +1,84 @@
+A brief explanation about the lang's syntax:
+
+        BRANCHING:
+
+```
+if (bool_exp) {}
+elif (bool_exp) {}
+else {}
+```
+
+        LOOPS:
+
+```
+while (boolean_exp) {}
+for (init;bool_exp;)
+```
+
+        FUNCTION DEFINITION:
+
+```
+int32 functionName(args) {} /* everything in function header is a function signature 
+(return type, function name and arguments), providing a possibility of return type overriding */
+
+inline int32 inlinedFunction(args) {} // 
+```
+
+        DEFINING A DATA TYPE:
+
+```
+struct name 
+{
+    int32 fld; // field definition
+
+    ctor(args) {} // constructor definition
+}
+```
+        USING AN IMPORTED PROJECT:
+```
+    use Project; // project has to be linked in a compiler options file.
+```
+
+        ALIASES:
+```
+alias int32 int; // alias type name only in the defined file
+alias global int32 int; // alias name for a type globally throughout the project
+```
+
+        P/INVOKE:
+    
+```
+    // several overloads
+    int32 functionName(args) pinv [str]; // where str = a calling dynamic library identifier of type 'char*'
+    int32 functionName(args) pinv [str, call_conv]; // call_conv - a calling convention identifier
+    int32 functionName(args) pinv [str, preserveSig]; // preserve signature?
+    int32 functionName(args) pinv [str, call_conv, preserveSig];
+```
+
+        The language is based on pointers, meaning that no allocations are made automatically and GC is not used.
+
+```
+    int32 main(char** args) // also no arguments overload is suitable 
+    {
+        int64 long = 0xff;
+        int64* pointer = &long; // unary operator '&' returns a pointer type (native int pointing to addr)
+
+        bool verif = *pointer == long;
+
+        ret (int32)verif; 
+    }
+```
+        PREPROCESSOR DIRECTIVES:
+```
+#def PI = 3.1415
+#def macro(x, y) (x + y)
+
+#ifdef identifier
+#if PI < 3
+#else 
+#endif
+
+#pragma
+    #pragma warning(disable: warn_list, restore: warn_list)
+
+```
