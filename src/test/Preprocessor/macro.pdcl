@@ -1,0 +1,10 @@
+#def PI 3.14
+    /*   \ /*
+    #def ignored  0
+      */
+      //  some comment  
+               #def   /*  */struct0_ struct someStr {}
+
+            
+    #def someArgedMacro (arg1, x) arg1 + x 
+

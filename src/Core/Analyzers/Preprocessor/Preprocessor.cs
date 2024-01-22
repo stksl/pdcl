@@ -8,19 +8,21 @@ namespace Pdcl.Core.Preproc;
 /// Substitutes preprocessor directives with string tokens.
 /// Can be turned off.
 /// </summary>
-internal sealed class Preprocessor
+public sealed class Preprocessor
 {
     public const char DirectiveLiteral = '#';
     private readonly SourceReader reader;
+    private readonly PreprocContext context;
+
     private List<PreprocTrivia> commentTrivias;
-    public Preprocessor(SourceReader reader_)
+    public Preprocessor(SourceReader reader_, PreprocContext context_)
     {
         reader = reader_;
         commentTrivias = new List<PreprocTrivia>();
+        context = context_;
     }
     private int handleComment(bool isSingleLine)
     {
-
         int len = 0;
         if (isSingleLine)
         {
@@ -28,19 +30,26 @@ internal sealed class Preprocessor
         }
         else
         {
-            while (!reader.EOF && reader.Advance() != '*' && reader.Advance() != '/') len++;
+            string prev = reader.Peek().ToString();
+            while (!reader.EOF && prev + reader.Peek() != "*/") 
+            {
+                len++; 
+                prev = reader.Peek().ToString();
+                reader.Advance();
+            }
+            reader.Advance();
         }
         return len;
     }
-    private string handleText() 
+    private string? handleText()
     {
-        if (!char.IsLetter(reader.Peek())) 
+        if (!char.IsLetter(reader.Peek()))
         {
-            return null!;
+            return null;
         }
         StringBuilder sb = new StringBuilder();
 
-        while (!reader.EOF && char.IsLetterOrDigit(reader.Peek()) || reader.Peek() == '_') 
+        while (!reader.EOF && char.IsLetterOrDigit(reader.Peek()) || reader.Peek() == '_')
         {
             sb.Append(reader.Peek());
             reader.Advance();
@@ -48,18 +57,18 @@ internal sealed class Preprocessor
         return sb.ToString();
     }
     // consumes every symbol till the end of the line
-    private string handleMacroText() 
+    private string handleMacroText()
     {
         StringBuilder sb = new StringBuilder();
-        while (!reader.EOF && reader.Peek() != '\n') 
+        while (!reader.EOF && reader.Peek() != '\n')
         {
-            sb.Append(reader.Peek()); 
+            sb.Append(reader.Peek());
             reader.Advance();
         }
         reader.Advance();
 
         return sb.ToString();
-    } 
+    }
     /// <summary>
     /// returns whether leading trivia was skipped or not
     /// </summary>
@@ -69,10 +78,13 @@ internal sealed class Preprocessor
     {
         if (reader.Peek() == '/')
         {
-            if (reader.Advance() == '/')
+            reader.Advance();
+            if (reader.Peek() == '/')
                 commentTrivias.Add(new PreprocTrivia((int)reader.Position, handleComment(isSingleLine: true)));
-            else if (reader.Peek() == '*')
+            else if (reader.Peek() == '*') {
+                reader.Advance();
                 commentTrivias.Add(new PreprocTrivia((int)reader.Position, handleComment(isSingleLine: false)));
+            }
             else { reader.Position--; return false; } // slash-non-comment was skipped so we're restoring
         }
         else if (otherTrivia.Contains(reader.Peek())) reader.Advance();
@@ -80,47 +92,82 @@ internal sealed class Preprocessor
 
         return true | handleLeadingTrivia();
     }
+    private bool firstTokenSeen = false;
     /// <summary>
-    /// Skips all characters, deleting comments on the way, while directive token is not found or EOF
+    /// Skips all characters marking comments as trivia on the way while directive token is not found or EOF
     /// </summary>
     /// <returns></returns>
     /// <exception cref="EndOfStreamException"></exception>
     public PreprocResult<IDirective?> NextDirective()
     {
-        while (!reader.EOF && reader.Peek() != DirectiveLiteral)
+        while (reader.Peek() != DirectiveLiteral)
         {
-            handleLeadingTrivia();
+            if (reader.EOF)
+                return new PreprocResult<IDirective?>(null, PreprocStatusCode.EOF);
+            if (!handleLeadingTrivia()) 
+            {
+                firstTokenSeen = true;
+                reader.Advance();
+            }
         }
-        if (reader.EOF)
-            throw new EndOfStreamException("Unable to parse the directive at the end of the file.");
-
-        return ParseDirective();
+        reader.Advance();
+        return parseDirective();
     }
-    private PreprocResult<IDirective?> ParseDirective()
+    private PreprocResult<IDirective?> parseDirective()
     {
-        string dirName = handleText();
-        if (handleLeadingTrivia()) 
+        string? dirName = handleText();
+        if (dirName != null && handleLeadingTrivia())
         {
             switch (dirName)
             {
                 case "def":
-                    return ParseMacro();
-                
+                    if (firstTokenSeen) 
+                        return new PreprocResult<IDirective?>(null, PreprocStatusCode.NonFirstToken);
+                    return parseMacro();
+                case "ifdef":
+                    return parseIfdef();
+
             }
         }
         return new PreprocResult<IDirective?>(null, PreprocStatusCode.NonExistingDirective);
     }
-    private PreprocResult<IDirective?> ParseMacro()
+    private PreprocResult<IDirective?> parseIfdef() 
     {
-        string name = handleText();
-
-        if (!handleLeadingTrivia(" ")) 
+        string? macroName = handleText();
+        if (macroName == null || context.Macros.GetMacroFor(macroName) == null) 
+        {
+            return new PreprocResult<IDirective?>(null, PreprocStatusCode.NonExistingMacro);
+        }
+        Ifdef ifdef = new Ifdef(macroName);
+        return new PreprocResult<IDirective?>(ifdef, 
+            handleLeadingTrivia(" ") ? PreprocStatusCode.Success : PreprocStatusCode.UnknownDeclaration);
+    }
+    private PreprocResult<IDirective?> parseMacro()
+    {
+        string? name = handleText();
+        if (!handleLeadingTrivia(" ") || name == null)
         {
             return new PreprocResult<IDirective?>(null, PreprocStatusCode.UnknownDeclaration);
         }
-        
-        string substitution = handleMacroText();
-        return new PreprocResult<IDirective?>(new Macro(name, substitution), PreprocStatusCode.Success);
+        if (reader.Peek() == '(')
+        {
+            reader.Advance();
+            List<string> argNames = new List<string>();
+            while (reader.Peek() != ')')
+            {
+                handleLeadingTrivia(" ");
+                string? argName = handleText();
+                if (reader.EOF || argName == null)
+                    return new PreprocResult<IDirective?>(null, PreprocStatusCode.UnknownDeclaration);
+
+                if (reader.Peek() == ',') {argNames.Add(argName); reader.Advance();}
+            }
+            reader.Advance();
+            return new PreprocResult<IDirective?>(new ArgumentedMacro(name, handleMacroText(), argNames), 
+            PreprocStatusCode.Success);
+        }
+        handleLeadingTrivia();
+        return new PreprocResult<IDirective?>(new Macro(name, handleMacroText()), PreprocStatusCode.Success);
     }
     public sealed class PreprocResult<T>
     {
@@ -137,7 +184,14 @@ internal sealed class Preprocessor
     {
         Success = 0,
 
+        EOF,
         UnknownDeclaration,
         NonExistingDirective,
+
+        // macros
+        NonFirstToken,
+
+        // ifdef
+        NonExistingMacro
     }
 }
