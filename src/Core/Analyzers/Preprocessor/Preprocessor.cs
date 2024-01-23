@@ -1,5 +1,6 @@
 using System.Data;
 using System.Runtime.InteropServices;
+using System.Security;
 using System.Text;
 using Pdcl.Core.Text;
 
@@ -8,7 +9,7 @@ namespace Pdcl.Core.Preproc;
 /// Substitutes preprocessor directives with string tokens.
 /// Can be turned off.
 /// </summary>
-public sealed class Preprocessor
+public sealed partial class Preprocessor
 {
     public const char DirectiveLiteral = '#';
     private readonly SourceReader reader;
@@ -31,9 +32,9 @@ public sealed class Preprocessor
         else
         {
             string prev = reader.Peek().ToString();
-            while (!reader.EOF && prev + reader.Peek() != "*/") 
+            while (!reader.EOF && prev + reader.Peek() != "*/")
             {
-                len++; 
+                len++;
                 prev = reader.Peek().ToString();
                 reader.Advance();
             }
@@ -80,10 +81,17 @@ public sealed class Preprocessor
         {
             reader.Advance();
             if (reader.Peek() == '/')
-                commentTrivias.Add(new PreprocTrivia((int)reader.Position, handleComment(isSingleLine: true)));
-            else if (reader.Peek() == '*') {
+            {
+                commentTrivias.Add(new PreprocTrivia(
+                    new TextPosition((int)reader.Position, handleComment(isSingleLine: true)))
+                    );
+            }
+            else if (reader.Peek() == '*')
+            {
                 reader.Advance();
-                commentTrivias.Add(new PreprocTrivia((int)reader.Position, handleComment(isSingleLine: false)));
+                commentTrivias.Add(new PreprocTrivia(
+                    new TextPosition((int)reader.Position, handleComment(isSingleLine: false)))
+                    );
             }
             else { reader.Position--; return false; } // slash-non-comment was skipped so we're restoring
         }
@@ -104,7 +112,7 @@ public sealed class Preprocessor
         {
             if (reader.EOF)
                 return new PreprocResult<IDirective?>(null, PreprocStatusCode.EOF);
-            if (!handleLeadingTrivia()) 
+            if (!handleLeadingTrivia())
             {
                 firstTokenSeen = true;
                 reader.Advance();
@@ -115,39 +123,59 @@ public sealed class Preprocessor
     }
     private PreprocResult<IDirective?> parseDirective()
     {
+        int pos = (int)reader.Position;
         string? dirName = handleText();
         if (dirName != null && handleLeadingTrivia())
         {
             switch (dirName)
             {
                 case "def":
-                    if (firstTokenSeen) 
+                    if (firstTokenSeen)
                         return new PreprocResult<IDirective?>(null, PreprocStatusCode.NonFirstToken);
-                    return parseMacro();
+                    return PreprocResult.CreateCovarient<IDirective?, Macro?>(parseMacro(pos));
                 case "ifdef":
-                    return parseIfdef();
+                    return PreprocResult.CreateCovarient<IDirective?, Ifdef?>(parseIfdef(pos));
+                case "else":
+                    return PreprocResult.CreateCovarient<IDirective?, Else?>(parseElse(pos));
+                case "endif":
+                    return PreprocResult.CreateCovarient<IDirective?, EndIf?>(parseEndif(pos));
 
             }
         }
         return new PreprocResult<IDirective?>(null, PreprocStatusCode.NonExistingDirective);
     }
-    private PreprocResult<IDirective?> parseIfdef() 
+    private PreprocResult<Ifdef?> parseIfdef(int startPos)
     {
+        // #ifdef
         string? macroName = handleText();
-        if (macroName == null || context.Macros.GetMacroFor(macroName) == null) 
+        if (macroName == null)
         {
-            return new PreprocResult<IDirective?>(null, PreprocStatusCode.NonExistingMacro);
+            return new PreprocResult<Ifdef?>(null, PreprocStatusCode.UnknownDeclaration);
         }
-        Ifdef ifdef = new Ifdef(macroName);
-        return new PreprocResult<IDirective?>(ifdef, 
-            handleLeadingTrivia(" ") ? PreprocStatusCode.Success : PreprocStatusCode.UnknownDeclaration);
+        Ifdef ifdef = new Ifdef(macroName,
+            new TextPosition(startPos, (int)reader.Position - startPos),
+            context.Macros.GetMacroFor(macroName) != null);
+
+        return new PreprocResult<Ifdef?>(ifdef,
+            handleLeadingTrivia() ? PreprocStatusCode.Success : PreprocStatusCode.UnknownDeclaration);
     }
-    private PreprocResult<IDirective?> parseMacro()
+    private PreprocResult<Else?> parseElse(int startPos) 
     {
+        // #else
+        return new PreprocResult<Else?>(new Else(new TextPosition(startPos, (int)reader.Position - startPos)), PreprocStatusCode.Success);
+    }
+    private PreprocResult<EndIf?> parseEndif(int startPos) 
+    {
+        // #endif
+        return new PreprocResult<EndIf?>(new EndIf(new TextPosition(startPos, (int)reader.Position - startPos)), PreprocStatusCode.Success);
+    }
+    private PreprocResult<Macro?> parseMacro(int startPos)
+    {
+        // #def
         string? name = handleText();
         if (!handleLeadingTrivia(" ") || name == null)
         {
-            return new PreprocResult<IDirective?>(null, PreprocStatusCode.UnknownDeclaration);
+            return new PreprocResult<Macro?>(null, PreprocStatusCode.UnknownDeclaration);
         }
         if (reader.Peek() == '(')
         {
@@ -158,27 +186,19 @@ public sealed class Preprocessor
                 handleLeadingTrivia(" ");
                 string? argName = handleText();
                 if (reader.EOF || argName == null)
-                    return new PreprocResult<IDirective?>(null, PreprocStatusCode.UnknownDeclaration);
+                    return new PreprocResult<Macro?>(null, PreprocStatusCode.UnknownDeclaration);
 
-                if (reader.Peek() == ',') {argNames.Add(argName); reader.Advance();}
+                if (reader.Peek() == ',') { argNames.Add(argName); reader.Advance(); }
             }
             reader.Advance();
-            return new PreprocResult<IDirective?>(new ArgumentedMacro(name, handleMacroText(), argNames), 
-            PreprocStatusCode.Success);
+            return new PreprocResult<Macro?>(
+                new ArgumentedMacro(name, handleMacroText(), argNames, new TextPosition(startPos, (int)reader.Position - startPos)),
+                PreprocStatusCode.Success);
         }
         handleLeadingTrivia();
-        return new PreprocResult<IDirective?>(new Macro(name, handleMacroText()), PreprocStatusCode.Success);
-    }
-    public sealed class PreprocResult<T>
-    {
-        public bool IsFailed => StatusCode != 0;
-        public readonly T Value;
-        public readonly PreprocStatusCode StatusCode;
-        public PreprocResult(T val, PreprocStatusCode statusCode)
-        {
-            Value = val;
-            StatusCode = statusCode;
-        }
+        return new PreprocResult<Macro?>(
+            new Macro(name, handleMacroText(), new TextPosition(startPos, (int)reader.Position - startPos)),
+            PreprocStatusCode.Success);
     }
     public enum PreprocStatusCode
     {

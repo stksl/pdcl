@@ -1,12 +1,12 @@
+using Pdcl.Core.Text;
+
 namespace Pdcl.Core.Preproc;
 
-public struct PreprocTrivia
+public readonly struct PreprocTrivia
 {
-    public readonly int Position;
-    public readonly int Length;
-    public PreprocTrivia(int pos, int len)
+    public readonly TextPosition Position;
+    public PreprocTrivia(TextPosition pos)
     {
         Position = pos;
-        Length = len;
     }
 }

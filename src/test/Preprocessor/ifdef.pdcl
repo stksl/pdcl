@@ -1,0 +1,10 @@
+// [0] EXPECTED: Success, not defined
+#ifdef ignored
+#endif
+
+// [1] EXPECTED: Success
+#ifdef someArgedMacro
+#endif
+
+// [2] EXPECTED: Unknown declaration
+#ifdef

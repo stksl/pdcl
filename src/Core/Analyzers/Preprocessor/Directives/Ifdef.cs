@@ -1,11 +1,13 @@
 
+using Pdcl.Core.Text;
+
 namespace Pdcl.Core.Preproc;
 
-public sealed class Ifdef : IDirective 
+public sealed class Ifdef : BranchedDirective 
 {
-    public string Name {get; private set;}
-    public Ifdef(string name)
+    public readonly bool Result;
+    public Ifdef(string name, TextPosition header, bool result) : base(name, header)
     {
-        Name = name;
+        Result = result;
     }
 }
