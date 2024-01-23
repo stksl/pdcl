@@ -1,7 +1,9 @@
+using System.Collections.Immutable;
 using System.Data;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Text;
+using Pdcl.Core.Syntax;
 using Pdcl.Core.Text;
 
 namespace Pdcl.Core.Preproc;
@@ -12,48 +14,47 @@ namespace Pdcl.Core.Preproc;
 public sealed partial class Preprocessor
 {
     public const char DirectiveLiteral = '#';
-    private readonly SourceReader reader;
+    private readonly SourceStream stream;
     private readonly PreprocContext context;
-
-    private List<PreprocTrivia> commentTrivias;
-    public Preprocessor(SourceReader reader_, PreprocContext context_)
+    private Dictionary<int, ISyntaxTrivia> trivias;
+    public ImmutableDictionary<int, ISyntaxTrivia> Trivias => trivias.ToImmutableDictionary();
+    public Preprocessor(SourceStream stream_, PreprocContext context_)
     {
-        reader = reader_;
-        commentTrivias = new List<PreprocTrivia>();
+        stream = stream_;
         context = context_;
+
+        trivias = new Dictionary<int, ISyntaxTrivia>();
     }
     private int handleComment(bool isSingleLine)
     {
         int len = 0;
         if (isSingleLine)
         {
-            while (!reader.EOF && reader.Advance() != '\n') len++;
+            while (!stream.EOF && stream.Advance() != '\n') len++;
         }
         else
         {
-            string prev = reader.Peek().ToString();
-            while (!reader.EOF && prev + reader.Peek() != "*/")
+            string prev = stream.Peek().ToString();
+            while (!stream.EOF && prev + stream.Peek() != "*/")
             {
                 len++;
-                prev = reader.Peek().ToString();
-                reader.Advance();
+                prev = stream.Advance().ToString();
             }
-            reader.Advance();
+            stream.Position++;
         }
         return len;
     }
     private string? handleText()
     {
-        if (!char.IsLetter(reader.Peek()))
+        if (!char.IsLetter(stream.Peek()))
         {
             return null;
         }
         StringBuilder sb = new StringBuilder();
 
-        while (!reader.EOF && char.IsLetterOrDigit(reader.Peek()) || reader.Peek() == '_')
+        while (!stream.EOF && char.IsLetterOrDigit(stream.Peek()) || stream.Peek() == '_')
         {
-            sb.Append(reader.Peek());
-            reader.Advance();
+            sb.Append(stream.Advance());
         }
         return sb.ToString();
     }
@@ -61,12 +62,11 @@ public sealed partial class Preprocessor
     private string handleMacroText()
     {
         StringBuilder sb = new StringBuilder();
-        while (!reader.EOF && reader.Peek() != '\n')
+        while (!stream.EOF && stream.Peek() != '\n')
         {
-            sb.Append(reader.Peek());
-            reader.Advance();
+            sb.Append(stream.Advance());
         }
-        reader.Advance();
+        stream.Position++;
 
         return sb.ToString();
     }
@@ -75,30 +75,44 @@ public sealed partial class Preprocessor
     /// </summary>
     /// <param name="otherTrivia"></param>
     /// <returns></returns>
-    private bool handleLeadingTrivia(string otherTrivia = " \n")
+    private bool handleLeadingTrivia(bool handleNewline = true)
     {
-        if (reader.Peek() == '/')
+        int pos = (int)stream.Position;
+        string trivia = handleNewline ? "/\n " : "/ ";
+        bool res = false;
+        int length = 0;
+        while (trivia.Contains(stream.Peek()))
         {
-            reader.Advance();
-            if (reader.Peek() == '/')
+            if (stream.Peek() == '/')
             {
-                commentTrivias.Add(new PreprocTrivia(
-                    new TextPosition((int)reader.Position, handleComment(isSingleLine: true)))
-                    );
+                stream.Position++;
+                if (stream.Peek() == '/')
+                {
+                    stream.Position--;
+                    length += handleComment(isSingleLine: true);
+                }
+                else if (stream.Peek() == '*')
+                {
+                    stream.Position--;
+                    length += handleComment(isSingleLine: false);
+                }
+                else { stream.Position--; break; } // slash-non-comment was skipped so we're restoring
             }
-            else if (reader.Peek() == '*')
+            else if (trivia.Substring(1).Contains(stream.Peek()))
             {
-                reader.Advance();
-                commentTrivias.Add(new PreprocTrivia(
-                    new TextPosition((int)reader.Position, handleComment(isSingleLine: false)))
-                    );
+                int temp = (int)stream.Position;
+                while (!stream.EOF && trivia.Substring(1).Contains(stream.Peek()))
+                {
+                    stream.Position++;
+                }
+                length += (int)stream.Position - temp;
             }
-            else { reader.Position--; return false; } // slash-non-comment was skipped so we're restoring
+            else break;
+            res = true;
         }
-        else if (otherTrivia.Contains(reader.Peek())) reader.Advance();
-        else return false;
+        if (res) trivias[pos] = new SyntaxTrivia(new TextPosition(pos, length));
 
-        return true | handleLeadingTrivia();
+        return res;
     }
     private bool firstTokenSeen = false;
     /// <summary>
@@ -108,22 +122,23 @@ public sealed partial class Preprocessor
     /// <exception cref="EndOfStreamException"></exception>
     public PreprocResult<IDirective?> NextDirective()
     {
-        while (reader.Peek() != DirectiveLiteral)
+        while (stream.Peek() != DirectiveLiteral)
         {
-            if (reader.EOF)
+            if (stream.EOF)
                 return new PreprocResult<IDirective?>(null, PreprocStatusCode.EOF);
             if (!handleLeadingTrivia())
             {
                 firstTokenSeen = true;
-                reader.Advance();
+                stream.Position++;
             }
         }
-        reader.Advance();
+        stream.Position++;
         return parseDirective();
     }
     private PreprocResult<IDirective?> parseDirective()
     {
-        int pos = (int)reader.Position;
+        int pos = (int)stream.Position - 1; // position on '#' token
+
         string? dirName = handleText();
         if (dirName != null && handleLeadingTrivia())
         {
@@ -153,51 +168,53 @@ public sealed partial class Preprocessor
             return new PreprocResult<Ifdef?>(null, PreprocStatusCode.UnknownDeclaration);
         }
         Ifdef ifdef = new Ifdef(macroName,
-            new TextPosition(startPos, (int)reader.Position - startPos),
+            new TextPosition(startPos, (int)stream.Position - startPos),
             context.Macros.GetMacroFor(macroName) != null);
 
         return new PreprocResult<Ifdef?>(ifdef,
             handleLeadingTrivia() ? PreprocStatusCode.Success : PreprocStatusCode.UnknownDeclaration);
     }
-    private PreprocResult<Else?> parseElse(int startPos) 
+    private PreprocResult<Else?> parseElse(int startPos)
     {
         // #else
-        return new PreprocResult<Else?>(new Else(new TextPosition(startPos, (int)reader.Position - startPos)), PreprocStatusCode.Success);
+        return new PreprocResult<Else?>(new Else(new TextPosition(startPos, (int)stream.Position - startPos)), PreprocStatusCode.Success);
     }
-    private PreprocResult<EndIf?> parseEndif(int startPos) 
+    private PreprocResult<EndIf?> parseEndif(int startPos)
     {
         // #endif
-        return new PreprocResult<EndIf?>(new EndIf(new TextPosition(startPos, (int)reader.Position - startPos)), PreprocStatusCode.Success);
+        return new PreprocResult<EndIf?>(new EndIf(new TextPosition(startPos, (int)stream.Position - startPos)), PreprocStatusCode.Success);
     }
     private PreprocResult<Macro?> parseMacro(int startPos)
     {
         // #def
         string? name = handleText();
-        if (!handleLeadingTrivia(" ") || name == null)
-        {
+
+        if (!handleLeadingTrivia(handleNewline: false) || name == null)
             return new PreprocResult<Macro?>(null, PreprocStatusCode.UnknownDeclaration);
-        }
-        if (reader.Peek() == '(')
+        else if (context.Macros.GetMacroFor(name) != null)
+            return new PreprocResult<Macro?>(null, PreprocStatusCode.AlreadyDefined);
+
+        if (stream.Peek() == '(')
         {
-            reader.Advance();
+            stream.Position++;
             List<string> argNames = new List<string>();
-            while (reader.Peek() != ')')
+            while (stream.Peek() != ')')
             {
-                handleLeadingTrivia(" ");
+                handleLeadingTrivia(handleNewline: false) ;
                 string? argName = handleText();
-                if (reader.EOF || argName == null)
+                if (stream.EOF || argName == null)
                     return new PreprocResult<Macro?>(null, PreprocStatusCode.UnknownDeclaration);
 
-                if (reader.Peek() == ',') { argNames.Add(argName); reader.Advance(); }
+                if (stream.Peek() == ',') { argNames.Add(argName); stream.Position++; }
             }
-            reader.Advance();
+            stream.Position++;
             return new PreprocResult<Macro?>(
-                new ArgumentedMacro(name, handleMacroText(), argNames, new TextPosition(startPos, (int)reader.Position - startPos)),
+                new ArgumentedMacro(name, handleMacroText(), argNames, new TextPosition(startPos, (int)stream.Position - startPos)),
                 PreprocStatusCode.Success);
         }
         handleLeadingTrivia();
         return new PreprocResult<Macro?>(
-            new Macro(name, handleMacroText(), new TextPosition(startPos, (int)reader.Position - startPos)),
+            new Macro(name, handleMacroText(), new TextPosition(startPos, (int)stream.Position - startPos)),
             PreprocStatusCode.Success);
     }
     public enum PreprocStatusCode
@@ -210,7 +227,7 @@ public sealed partial class Preprocessor
 
         // macros
         NonFirstToken,
-
+        AlreadyDefined,
         // ifdef
         NonExistingMacro
     }

@@ -6,5 +6,5 @@
 #ifdef someArgedMacro
 #endif
 
-// [2] EXPECTED: Unknown declaration
+// [2] EXPECTED: Non existing directive
 #ifdef

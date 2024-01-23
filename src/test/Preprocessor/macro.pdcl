@@ -8,3 +8,7 @@
             
     #def someArgedMacro (arg1, x) arg1 + x 
 
+void main() 
+{
+  #def NonFirstT 3 // non-first token
+}

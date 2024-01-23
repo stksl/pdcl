@@ -1,3 +1,5 @@
+using Pdcl.Core.Syntax;
+
 namespace Pdcl.Core.Preproc;
 
 /// <summary>

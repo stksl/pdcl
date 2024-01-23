@@ -1,3 +1,5 @@
+using Pdcl.Core.Syntax;
+
 namespace Pdcl.Core;
 
 public enum SyntaxKind : int 
@@ -15,7 +17,7 @@ public enum SyntaxKind : int
     SingleQuoteToken, // '
     DoubleQuoteToken, // "
 
-    TextToken, // text
+    TextToken, // text123_
     NumberToken, // 123, 1.23, 0xff, 0b00101
 
     DotToken, // .
@@ -42,11 +44,12 @@ public enum SyntaxKind : int
     IsMoreEqualToken, // >=
     NotEqualToken, // !=
 
-
     // trivia
     WhitespaceToken,
     NewlineToken,
-
+    SingleCommentToken,
+    MultiCommentToken,
+    
     // keywords
     UseToken, // use
     AliasToken, // alias

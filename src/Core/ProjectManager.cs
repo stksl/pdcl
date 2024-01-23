@@ -1,4 +1,4 @@
-namespace Pdcl.Core.Text;
+namespace Pdcl.Core;
 
 public sealed class ProjectManager 
 {

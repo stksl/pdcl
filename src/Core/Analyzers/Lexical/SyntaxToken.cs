@@ -6,13 +6,13 @@ public struct SyntaxToken
 {
     public SyntaxKind Kind {get; init;}
     public LexemeMetadata Metadata {get; init;}
-    public readonly SourceReader Reader;
-    public SyntaxToken(SyntaxKind kind, LexemeMetadata metadata, SourceReader reader) : this(reader)
+    public readonly SourceStream Reader;
+    public SyntaxToken(SyntaxKind kind, LexemeMetadata metadata, SourceStream reader) : this(reader)
     {
         Kind = kind;
         Metadata = metadata;
     }
-    public SyntaxToken(SourceReader reader)
+    public SyntaxToken(SourceStream reader)
     {
         Reader = reader;
     }

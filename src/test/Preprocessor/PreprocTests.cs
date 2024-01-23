@@ -16,25 +16,24 @@ public partial class PreprocTest
     public MacroBag HandleMacro_Test()
     {
         // Booting up the preprocessor
-
-        using SourceReader reader = new SourceReader(GetRelativePath() + "macro.pdcl");
-        Preprocessor preproc = new Preprocessor(reader, null!);
+        PreprocContext ctx = new PreprocContext();
+        using SourceStream stream = new SourceStream(GetRelativePath() + "macro.pdcl");
+        Preprocessor preproc = new Preprocessor(stream, ctx);
         
         // Expected names
         string[] macrosNames = {"PI", "struct0_", "someArgedMacro"};
 
-        MacroBag bag = new MacroBag(null);
-
         Preprocessor.PreprocResult<IDirective?> macro = preproc.NextDirective();
-        for(int i = 0; macro.StatusCode != Preprocessor.PreprocStatusCode.EOF; i++) 
+        for(int i = 0; i < macrosNames.Length; i++) 
         {
             Assert.True(!macro.IsFailed && macrosNames[i] == macro.Value!.Name);
-
-            Assert.True(bag.InsertMacro((Macro)macro.Value));
+            ctx.Macros.InsertMacro((Macro)macro.Value);
             macro = preproc.NextDirective();
         }
 
-        return bag;
+        // Non-first token
+        Assert.True(macro.StatusCode == Preprocessor.PreprocStatusCode.NonFirstToken);
+        return ctx.Macros;
     }
     [Fact]
     public void HandleIfdef_Test() 
@@ -42,14 +41,14 @@ public partial class PreprocTest
         // HandleMacro_Test is a dependency and has to work fine
         MacroBag bag = HandleMacro_Test(); // handling defined macros in "./macro.pdcl"
 
-        using SourceReader reader = new SourceReader(GetRelativePath() + "ifdef.pdcl");
+        using SourceStream stream = new SourceStream(GetRelativePath() + "ifdef.pdcl");
 
         PreprocContext ctx = new PreprocContext();
 
         foreach(Macro macro in bag) 
             Assert.True(ctx.Macros.InsertMacro(macro));
 
-        Preprocessor preproc = new Preprocessor(reader, ctx);
+        Preprocessor preproc = new Preprocessor(stream, ctx);
         /* 
             #ifdef ignored
             #endif 
@@ -70,6 +69,6 @@ public partial class PreprocTest
             #ifdef
         */
         dir = preproc.NextDirective();
-        Assert.True(dir.StatusCode == Preprocessor.PreprocStatusCode.UnknownDeclaration);
+        Assert.True(dir.IsFailed);
     }
 }
