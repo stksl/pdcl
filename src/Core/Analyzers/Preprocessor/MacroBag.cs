@@ -14,8 +14,9 @@ public sealed class MacroBag : IEnumerable<Macro>
             new LinkedListNode<IDictionary<string, Macro>>(
                 new Dictionary<string, Macro>()));
     }
-    public Macro? GetMacroFor(string token) 
+    public Macro? GetMacroFor(string? token) 
     {
+        if (token == null) return null;
         foreach(IDictionary<string, Macro> macros in definedMacros) 
         {
             if (macros.TryGetValue(token, out Macro? macro)) 

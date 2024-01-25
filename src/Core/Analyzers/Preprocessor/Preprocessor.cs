@@ -6,17 +6,19 @@ using System.Text;
 using Pdcl.Core.Syntax;
 using Pdcl.Core.Text;
 
+using PS_Code = Pdcl.Core.Preproc.Preprocessor.PreprocStatusCode;
 namespace Pdcl.Core.Preproc;
 /// <summary>
 /// Substitutes preprocessor directives with string tokens.
 /// Can be turned off.
 /// </summary>
-public sealed partial class Preprocessor
+internal sealed partial class Preprocessor
 {
     public const char DirectiveLiteral = '#';
     private readonly SourceStream stream;
     private readonly PreprocContext context;
     private Dictionary<int, ISyntaxTrivia> trivias;
+    // trivias have to be passed to the lexing phase
     public ImmutableDictionary<int, ISyntaxTrivia> Trivias => trivias.ToImmutableDictionary();
     public Preprocessor(SourceStream stream_, PreprocContext context_)
     {
@@ -25,25 +27,12 @@ public sealed partial class Preprocessor
 
         trivias = new Dictionary<int, ISyntaxTrivia>();
     }
-    private int handleComment(bool isSingleLine)
+    private bool handleLeadingTrivia(bool handleNewline = true) 
     {
-        int len = 0;
-        if (isSingleLine)
-        {
-            while (!stream.EOF && stream.Advance() != '\n') len++;
-        }
-        else
-        {
-            string prev = stream.Peek().ToString();
-            while (!stream.EOF && prev + stream.Peek() != "*/")
-            {
-                len++;
-                prev = stream.Advance().ToString();
-            }
-            stream.Position++;
-        }
-        return len;
-    }
+        bool res = stream.handleLeadingTrivia(out ISyntaxTrivia? trivia, handleNewline);
+        if (res) trivias[trivia!.Position.Position] = trivia;
+        return res;
+    } 
     private string? handleText()
     {
         if (!char.IsLetter(stream.Peek()))
@@ -70,62 +59,18 @@ public sealed partial class Preprocessor
 
         return sb.ToString();
     }
-    /// <summary>
-    /// returns whether leading trivia was skipped or not
-    /// </summary>
-    /// <param name="otherTrivia"></param>
-    /// <returns></returns>
-    private bool handleLeadingTrivia(bool handleNewline = true)
-    {
-        int pos = (int)stream.Position;
-        string trivia = handleNewline ? "/\n " : "/ ";
-        bool res = false;
-        int length = 0;
-        while (trivia.Contains(stream.Peek()))
-        {
-            if (stream.Peek() == '/')
-            {
-                stream.Position++;
-                if (stream.Peek() == '/')
-                {
-                    stream.Position--;
-                    length += handleComment(isSingleLine: true);
-                }
-                else if (stream.Peek() == '*')
-                {
-                    stream.Position--;
-                    length += handleComment(isSingleLine: false);
-                }
-                else { stream.Position--; break; } // slash-non-comment was skipped so we're restoring
-            }
-            else if (trivia.Substring(1).Contains(stream.Peek()))
-            {
-                int temp = (int)stream.Position;
-                while (!stream.EOF && trivia.Substring(1).Contains(stream.Peek()))
-                {
-                    stream.Position++;
-                }
-                length += (int)stream.Position - temp;
-            }
-            else break;
-            res = true;
-        }
-        if (res) trivias[pos] = new SyntaxTrivia(new TextPosition(pos, length));
-
-        return res;
-    }
     private bool firstTokenSeen = false;
     /// <summary>
     /// Skips all characters marking comments as trivia on the way while directive token is not found or EOF
     /// </summary>
     /// <returns></returns>
     /// <exception cref="EndOfStreamException"></exception>
-    public PreprocResult<IDirective?> NextDirective()
+    public IAnalyzerResult<IDirective, PS_Code> NextDirective()
     {
         while (stream.Peek() != DirectiveLiteral)
         {
             if (stream.EOF)
-                return new PreprocResult<IDirective?>(null, PreprocStatusCode.EOF);
+                return new AnalyzerResult<IDirective, PS_Code>(null, PS_Code.EOF);
             if (!handleLeadingTrivia())
             {
                 firstTokenSeen = true;
@@ -135,7 +80,8 @@ public sealed partial class Preprocessor
         stream.Position++;
         return parseDirective();
     }
-    private PreprocResult<IDirective?> parseDirective()
+    
+    private IAnalyzerResult<IDirective, PS_Code> parseDirective()
     {
         int pos = (int)stream.Position - 1; // position on '#' token
 
@@ -146,53 +92,53 @@ public sealed partial class Preprocessor
             {
                 case "def":
                     if (firstTokenSeen)
-                        return new PreprocResult<IDirective?>(null, PreprocStatusCode.NonFirstToken);
-                    return PreprocResult.CreateCovarient<IDirective?, Macro?>(parseMacro(pos));
+                        return new AnalyzerResult<IDirective, PS_Code>(null, PS_Code.NonFirstToken);
+                    return parseMacro(pos);
                 case "ifdef":
-                    return PreprocResult.CreateCovarient<IDirective?, Ifdef?>(parseIfdef(pos));
+                    return parseIfdef(pos);
                 case "else":
-                    return PreprocResult.CreateCovarient<IDirective?, Else?>(parseElse(pos));
+                    return parseElse(pos);
                 case "endif":
-                    return PreprocResult.CreateCovarient<IDirective?, EndIf?>(parseEndif(pos));
+                    return parseEndif(pos);
 
             }
         }
-        return new PreprocResult<IDirective?>(null, PreprocStatusCode.NonExistingDirective);
+        return new AnalyzerResult<IDirective, PS_Code>(null, PS_Code.NonExistingDirective);
     }
-    private PreprocResult<Ifdef?> parseIfdef(int startPos)
+    private IAnalyzerResult<Ifdef, PS_Code> parseIfdef(int startPos)
     {
         // #ifdef
         string? macroName = handleText();
         if (macroName == null)
         {
-            return new PreprocResult<Ifdef?>(null, PreprocStatusCode.UnknownDeclaration);
+            return new AnalyzerResult<Ifdef, PS_Code>(null, PS_Code.UnknownDeclaration);
         }
         Ifdef ifdef = new Ifdef(macroName,
             new TextPosition(startPos, (int)stream.Position - startPos),
             context.Macros.GetMacroFor(macroName) != null);
 
-        return new PreprocResult<Ifdef?>(ifdef,
-            handleLeadingTrivia() ? PreprocStatusCode.Success : PreprocStatusCode.UnknownDeclaration);
+        return new AnalyzerResult<Ifdef, PS_Code>(ifdef,
+            handleLeadingTrivia() ? PS_Code.Success : PS_Code.UnknownDeclaration);
     }
-    private PreprocResult<Else?> parseElse(int startPos)
+    private IAnalyzerResult<Else, PS_Code> parseElse(int startPos)
     {
         // #else
-        return new PreprocResult<Else?>(new Else(new TextPosition(startPos, (int)stream.Position - startPos)), PreprocStatusCode.Success);
+        return new AnalyzerResult<Else, PS_Code>(new Else(new TextPosition(startPos, (int)stream.Position - startPos)), PS_Code.Success);
     }
-    private PreprocResult<EndIf?> parseEndif(int startPos)
+    private IAnalyzerResult<EndIf, PS_Code> parseEndif(int startPos)
     {
         // #endif
-        return new PreprocResult<EndIf?>(new EndIf(new TextPosition(startPos, (int)stream.Position - startPos)), PreprocStatusCode.Success);
+        return new AnalyzerResult<EndIf, PS_Code>(new EndIf(new TextPosition(startPos, (int)stream.Position - startPos)), PS_Code.Success);
     }
-    private PreprocResult<Macro?> parseMacro(int startPos)
+    private IAnalyzerResult<Macro, PS_Code> parseMacro(int startPos)
     {
         // #def
         string? name = handleText();
 
         if (!handleLeadingTrivia(handleNewline: false) || name == null)
-            return new PreprocResult<Macro?>(null, PreprocStatusCode.UnknownDeclaration);
+            return new AnalyzerResult<Macro, PS_Code>(null, PS_Code.UnknownDeclaration);
         else if (context.Macros.GetMacroFor(name) != null)
-            return new PreprocResult<Macro?>(null, PreprocStatusCode.AlreadyDefined);
+            return new AnalyzerResult<Macro, PS_Code>(null, PS_Code.AlreadyDefined);
 
         if (stream.Peek() == '(')
         {
@@ -203,32 +149,23 @@ public sealed partial class Preprocessor
                 handleLeadingTrivia(handleNewline: false) ;
                 string? argName = handleText();
                 if (stream.EOF || argName == null)
-                    return new PreprocResult<Macro?>(null, PreprocStatusCode.UnknownDeclaration);
+                    return new AnalyzerResult<Macro, PS_Code>(null, PS_Code.UnknownDeclaration);
 
-                if (stream.Peek() == ',') { argNames.Add(argName); stream.Position++; }
+                if (stream.Peek() == ',') 
+                { 
+                    argNames.Add(argName); 
+                    stream.Position++; 
+                }
+                else if (stream.Peek() == ')') argNames.Add(argName);
             }
             stream.Position++;
-            return new PreprocResult<Macro?>(
+            return new AnalyzerResult<Macro, PS_Code>(
                 new ArgumentedMacro(name, handleMacroText(), argNames, new TextPosition(startPos, (int)stream.Position - startPos)),
-                PreprocStatusCode.Success);
+                PS_Code.Success);
         }
         handleLeadingTrivia();
-        return new PreprocResult<Macro?>(
+        return new AnalyzerResult<Macro, PS_Code>(
             new Macro(name, handleMacroText(), new TextPosition(startPos, (int)stream.Position - startPos)),
-            PreprocStatusCode.Success);
-    }
-    public enum PreprocStatusCode
-    {
-        Success = 0,
-
-        EOF,
-        UnknownDeclaration,
-        NonExistingDirective,
-
-        // macros
-        NonFirstToken,
-        AlreadyDefined,
-        // ifdef
-        NonExistingMacro
+            PS_Code.Success);
     }
 }

@@ -1,6 +1,9 @@
 using System.ComponentModel;
+using System.Reflection;
+using Pdcl.Core;
 using Pdcl.Core.Preproc;
 using Pdcl.Core.Text;
+
 namespace Pdcl.Test;
 
 public partial class PreprocTest 
@@ -23,7 +26,7 @@ public partial class PreprocTest
         // Expected names
         string[] macrosNames = {"PI", "struct0_", "someArgedMacro"};
 
-        Preprocessor.PreprocResult<IDirective?> macro = preproc.NextDirective();
+        IAnalyzerResult<IDirective, Preprocessor.PreprocStatusCode> macro = preproc.NextDirective();
         for(int i = 0; i < macrosNames.Length; i++) 
         {
             Assert.True(!macro.IsFailed && macrosNames[i] == macro.Value!.Name);
@@ -32,8 +35,9 @@ public partial class PreprocTest
         }
 
         // Non-first token
-        Assert.True(macro.StatusCode == Preprocessor.PreprocStatusCode.NonFirstToken);
+        Assert.True(macro.Status == Preprocessor.PreprocStatusCode.NonFirstToken);
         return ctx.Macros;
+
     }
     [Fact]
     public void HandleIfdef_Test() 
@@ -53,7 +57,9 @@ public partial class PreprocTest
             #ifdef ignored
             #endif 
         */
-        Preprocessor.PreprocResult<IDirective?> dir = preproc.NextDirective();
+
+
+        IAnalyzerResult<IDirective, Preprocessor.PreprocStatusCode> dir = preproc.NextDirective();
         Assert.True(!dir.IsFailed && ((Ifdef)dir.Value!).Result == false);
         dir = preproc.NextDirective();
         Assert.True(!dir.IsFailed && dir.Value is EndIf);
