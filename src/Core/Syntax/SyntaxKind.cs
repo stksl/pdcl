@@ -1,6 +1,5 @@
-using Pdcl.Core.Syntax;
 
-namespace Pdcl.Core;
+namespace Pdcl.Core.Syntax;
 
 public enum SyntaxKind : int 
 {
@@ -13,23 +12,18 @@ public enum SyntaxKind : int
     BackslashToken, // \
     EqualToken, // =
     PercentToken, // %
-
-    SingleQuoteToken, // '
-    DoubleQuoteToken, // "
-
-    TextToken, // text123_
-    NumberToken, // 123, 1.23, 0xff, 0b00101
-
     DotToken, // .
     CommaToken, // ,
     AmpersandToken, // &
+    PipeToken, // |
     ExclamationToken, // !
     QuestionToken, // ?
     SemicolonToken, // ;
     LessThenToken, // <
-    MoreThenToken, // >
+    GreaterThenToken, // >
     HashToken, // #
-
+    CharLiteral, // '
+    StringLiteral, // "
     // bounds
     OpenParentheseToken, // (
     CloseParentheseToken, // )
@@ -43,16 +37,21 @@ public enum SyntaxKind : int
     IsLessEqualToken, // <=
     IsMoreEqualToken, // >=
     NotEqualToken, // !=
+    ShortAndToken, // &&
+    ShortOrToken, // || 
+    // additional bitwise binary operators
+    LeftShiftToken, // <<
+    RightShiftToken, // >>
+
 
     // trivia
-    WhitespaceToken,
-    NewlineToken,
-    SingleCommentToken,
-    MultiCommentToken,
-    
+    TriviaToken, // could be a comment, a whitespace or a newline
+
+    TextToken, // text123_
+    NumberToken, // 123, 1.23, 0xff, 0b00101
+
     // keywords
     UseToken, // use
-    AliasToken, // alias
     WhileLoopToken, // while
     ForLoopToken, // for
     IfToken, // if
@@ -60,6 +59,7 @@ public enum SyntaxKind : int
     ElseToken, // else
     PInvToken, // pinv
     StructToken, // struct
-    ReturnToken, // ret
+    ReturnToken, // return
     NamespaceToken, // namespace
+    IL_InlineToken, // il_inline
 }

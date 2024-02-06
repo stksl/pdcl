@@ -13,10 +13,11 @@ public sealed class DiagnosticsBag : IEnumerable<IDiagnostic>
         diagnostics = new List<IDiagnostic>();
     }
 
-    public void Add(IDiagnostic item)
+    public void ReportError(Error err)
     {
-        diagnostics.Add(item);
+        diagnostics.Add(err);
     }
+    
 
     public IEnumerator<IDiagnostic> GetEnumerator() => diagnostics.GetEnumerator();
 

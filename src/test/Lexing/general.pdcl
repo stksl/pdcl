@@ -1,0 +1,6 @@
+void main() 
+{
+    string str = "some\"Str\"ing";
+
+    int32 some_int0 = 120;
+}

@@ -3,46 +3,44 @@ namespace Pdcl.Core.Preproc;
 /// <summary>
 /// A defined macros collection
 /// </summary>
-public sealed class MacroBag : IEnumerable<Macro>
+public sealed class MacroBag<TMacro> : IEnumerable<TMacro> where TMacro : IMacro
 {
-    private LinkedList<IDictionary<string, Macro>> definedMacros;
-    public MacroBag(LinkedList<IDictionary<string, Macro>>? list)
+    private LinkedList<IDictionary<int, TMacro>> macros;
+    public MacroBag(LinkedList<IDictionary<int, TMacro>>? list)
     {
-        definedMacros = list ?? new LinkedList<IDictionary<string, Macro>>();
+        macros = list ?? new LinkedList<IDictionary<int, TMacro>>();
 
-        definedMacros.AddLast(
-            new LinkedListNode<IDictionary<string, Macro>>(
-                new Dictionary<string, Macro>()));
+        macros.AddLast(
+            new LinkedListNode<IDictionary<int, TMacro>>(
+                new Dictionary<int, TMacro>()));
     }
-    public Macro? GetMacroFor(string? token) 
+    public TMacro? GetMacroFor(int hashcode) 
     {
-        if (token == null) return null;
-        foreach(IDictionary<string, Macro> macros in definedMacros) 
+        foreach(IDictionary<int, TMacro> macros in macros) 
         {
-            if (macros.TryGetValue(token, out Macro? macro)) 
+            if (macros.TryGetValue(hashcode, out TMacro? macro)) 
             {
                 return macro;
             }
         }
-        return null;
+        return default;
     }
-    public bool InsertMacro(Macro macro) 
+    public bool InsertMacro(TMacro macro) 
     {
-        if (GetMacroFor(macro.Name) != null) 
+        if (GetMacroFor(macro.GetHashCode()) != null) 
         {
             return false;
         }
 
-        definedMacros.Last!.Value[macro.Name] = macro;
+        macros.Last!.Value[macro.GetHashCode()] = macro;
         return true;
     }
-    public IEnumerator<Macro> GetEnumerator()
+    public IEnumerator<TMacro> GetEnumerator()
     {
-        foreach(IDictionary<string, Macro> node in definedMacros) 
+        foreach(IDictionary<int, TMacro> node in macros) 
         {
-            foreach(KeyValuePair<string, Macro> pair in node) yield return pair.Value;
+            foreach(KeyValuePair<int, TMacro> pair in node) yield return pair.Value;
         }
     }
-
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

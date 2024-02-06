@@ -8,19 +8,12 @@ namespace Pdcl.Test;
 
 public partial class PreprocTest 
 {
-    public static string GetRelativePath() 
-    {
-        string[] splitPath = Path.GetFullPath(".").Split('/');
-        string path = string.Join('/', splitPath.Take(splitPath.Length - 3)) + "/Preprocessor/";
-
-        return path;
-    }
     [Fact]
-    public MacroBag HandleMacro_Test()
+    public MacroBag<Macro> HandleMacro_Test()
     {
         // Booting up the preprocessor
         PreprocContext ctx = new PreprocContext();
-        using SourceStream stream = new SourceStream(GetRelativePath() + "macro.pdcl");
+        using SourceStream stream = new SourceStream(GetRelativePath() + "Preprocessor/macro.pdcl");
         Preprocessor preproc = new Preprocessor(stream, ctx);
         
         // Expected names
@@ -30,27 +23,27 @@ public partial class PreprocTest
         for(int i = 0; i < macrosNames.Length; i++) 
         {
             Assert.True(!macro.IsFailed && macrosNames[i] == macro.Value!.Name);
-            ctx.Macros.InsertMacro((Macro)macro.Value);
+            ctx.DefinedMacros.InsertMacro((Macro)macro.Value);
             macro = preproc.NextDirective();
         }
 
         // Non-first token
         Assert.True(macro.Status == Preprocessor.PreprocStatusCode.NonFirstToken);
-        return ctx.Macros;
+        return ctx.DefinedMacros;
 
     }
     [Fact]
     public void HandleIfdef_Test() 
     {
         // HandleMacro_Test is a dependency and has to work fine
-        MacroBag bag = HandleMacro_Test(); // handling defined macros in "./macro.pdcl"
+        MacroBag<Macro> bag = HandleMacro_Test(); // handling defined macros in "./macro.pdcl"
 
-        using SourceStream stream = new SourceStream(GetRelativePath() + "ifdef.pdcl");
+        using SourceStream stream = new SourceStream(GetRelativePath() + "Preprocessor/ifdef.pdcl");
 
         PreprocContext ctx = new PreprocContext();
 
         foreach(Macro macro in bag) 
-            Assert.True(ctx.Macros.InsertMacro(macro));
+            Assert.True(ctx.DefinedMacros.InsertMacro(macro));
 
         Preprocessor preproc = new Preprocessor(stream, ctx);
         /* 

@@ -39,12 +39,6 @@ struct name
     use Project; // project has to be linked in a compiler options file.
 ```
 
-        ALIASES:
-```
-alias int32 int; // alias type name only in the defined file
-alias global int32 int; // alias name for a type globally throughout the project
-```
-
         P/INVOKE:
     
 ```
@@ -82,3 +76,4 @@ alias global int32 int; // alias name for a type globally throughout the project
     #pragma warning(disable: warn_list, restore: warn_list)
 
 ```
+

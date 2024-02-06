@@ -30,6 +30,3 @@ public struct Error : IDiagnostic
         return obj is Error error && error.identifier == identifier && error.line == line;
     }
 }
-public static class Errors 
-{
-}

@@ -1,4 +1,6 @@
+using System.Collections.Immutable;
 using Pdcl.Core.Syntax;
+using Pdcl.Core.Text;
 
 namespace Pdcl.Core.Preproc;
 
@@ -7,9 +9,14 @@ namespace Pdcl.Core.Preproc;
 /// </summary>
 public sealed class PreprocContext 
 {
-    public readonly MacroBag Macros;
+    public readonly MacroBag<Macro> DefinedMacros;
+    public readonly MacroBag<NonDefinedMacro> NonDefMacros;
+    /// <summary>
+    /// Value - subtitution TextPosition and substitution string
+    /// </summary>
     public PreprocContext()
     {
-        Macros = new MacroBag(null);
+        DefinedMacros = new MacroBag<Macro>(null);
+        NonDefMacros = new MacroBag<NonDefinedMacro>(null);
     }
 }

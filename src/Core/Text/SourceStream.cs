@@ -4,7 +4,7 @@ using Pdcl.Core.Syntax;
 namespace Pdcl.Core.Text;
 public interface ISourceStream 
 {
-    long Position {get;}
+    int Position {get;}
     char Advance();
     char Peek();
 }
@@ -23,16 +23,16 @@ public sealed class SourceStream : ISourceStream, IDisposable
         
     }
 
-    public long Position 
+    public int Position 
     {
-        get => _stream.Position;
+        get => (int)_stream.Position;
         set => _stream.Position = value;
     }
     public bool EOF => Position == _stream.Length;
     public char Peek() 
     {
         int c = _stream.ReadByte(); 
-        if (!EOF) Position--;
+        Position--;
         return (char)c;
     }
     public char Advance() 
@@ -69,43 +69,43 @@ public sealed class SourceStream : ISourceStream, IDisposable
     /// </summary>
     /// <param name="otherTrivia"></param>
     /// <returns></returns>
-    public bool handleLeadingTrivia(out ISyntaxTrivia? syntaxTrivia, bool handleNewline = true)
+    public bool handleLeadingTrivia(out ISyntaxTrivia? syntaxTrivia, out int linesSkipped, bool handleNewline = true)
     {
-        int pos = (int)Position;
-        string trivia = handleNewline ? "/\n " : "/ ";
+        int pos = Position;
+        linesSkipped = 0;
         bool res = false;
-        int length = 0;
-        while (trivia.Contains(Peek()))
+        while ("/\n ".Contains(Peek()))
         {
-            if (Peek() == '/')
+            switch(Peek()) 
             {
-                Position++;
-                if (Peek() == '/')
-                {
-                    Position--;
-                    length += handleComment(isSingleLine: true);
-                }
-                else if (Peek() == '*')
-                {
-                    Position--;
-                    length += handleComment(isSingleLine: false);
-                }
-                else { Position--; break; } // slash-non-comment was skipped so we're restoring
-            }
-            else if (trivia.Substring(1).Contains(Peek()))
-            {
-                int temp = (int)Position;
-                while (!EOF && trivia.Substring(1).Contains(Peek()))
-                {
+                case '/':
                     Position++;
-                }
-                length += (int)Position - temp;
+                    if (Peek() == '/')
+                    {
+                        Position--;
+                        handleComment(isSingleLine: true);
+                    }
+                    else if (Peek() == '*')
+                    {
+                        Position--;
+                        handleComment(isSingleLine: false);
+                    }
+                    else { Position--; goto _ret; } // slash-non-comment was skipped so we're restoring
+                    break;
+                case ' ':
+                    Position++;
+                    break;
+                case '\n':
+                    if (!handleNewline) goto _ret;
+                    linesSkipped++;
+                    Position++;
+                    break;
+                default: goto _ret;
             }
-            else break;
             res = true;
         }
-
-        syntaxTrivia = res ? new SyntaxTrivia(new TextPosition(pos, length)) : null;
+        _ret:
+        syntaxTrivia = res ? new SyntaxTrivia(new TextPosition(pos, Position - pos)) : null;
         return res;
     }
     public void Dispose() => _stream.Dispose();
