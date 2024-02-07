@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Text;
+using Pdcl.Core.Diagnostics;
 using Pdcl.Core.Preproc;
 using Pdcl.Core.Syntax;
 using Pdcl.Core.Text;
@@ -8,6 +9,7 @@ internal sealed partial class Lexer
 {
     private readonly SourceStream stream;
     private readonly PreprocContext context;
+    private readonly DiagnosticHandler diagnosticHandler;
 
     public ImmutableDictionary<int, ISyntaxTrivia> TriviasMap => triviasMap.ToImmutableDictionary();
     private Dictionary<int, ISyntaxTrivia> triviasMap;
@@ -28,10 +30,11 @@ internal sealed partial class Lexer
             new KeyValuePair<string, SyntaxKind>("return", SyntaxKind.ReturnToken),
             new KeyValuePair<string, SyntaxKind>("il_inline", SyntaxKind.IL_InlineToken),
         });
-    public Lexer(SourceStream _stream, PreprocContext ctx)
+    public Lexer(SourceStream _stream, PreprocContext ctx, DiagnosticHandler diagnosticHandler_)
     {
         stream = _stream;
         context = ctx;
+        diagnosticHandler = diagnosticHandler_;
 
         triviasMap = new Dictionary<int, ISyntaxTrivia>();
     }
@@ -174,11 +177,11 @@ internal sealed partial class Lexer
             case '}':
                 return success(SyntaxKind.CloseBraceToken, stream.Position++, "}");
             case '#':
-                Macro? m = context.DefinedMacros.GetMacroFor(stream.Position);
+                Macro? m = context.GetDirective(stream.Position) as Macro;
                 if (m != null) 
                 {
                     stream.Position += m.Position.Length;
-                    break;
+                    return lex();
                 }
                 return success(SyntaxKind.HashToken, stream.Position++, "#");
             case '\\':
@@ -203,29 +206,35 @@ internal sealed partial class Lexer
         {
             return lexUnknownToken();
         }
+
+        NonDefinedMacro? nonDefMacro = context.NonDefMacros.Get(stream.Position);
+
+        if (nonDefMacro != null) 
+        {
+            stream.Position += nonDefMacro.Position.Length;
+            return success(SyntaxKind.MacroSubstitutedToken, stream.Position, nonDefMacro.Substitution);
+        }
+
         StringBuilder rawText = new StringBuilder();
         while (char.IsLetterOrDigit(stream.Peek()) || stream.Peek() == '_')
         {
             rawText.Append(stream.Advance());
         }
         string raw = rawText.ToString();
-        string res = raw;
         if (SyntaxKeywords.ContainsKey(raw))
             return lexKeywords(raw);
 
-        NonDefinedMacro m = context.NonDefMacros.GetMacroFor(stream.Position - raw.Length);
-        if (!m.Equals(default(NonDefinedMacro))) 
-        {
-            res = m.Substitution;
-        }
 
-        return success(SyntaxKind.TextToken, stream.Position - raw.Length, res);
+        return success(SyntaxKind.TextToken, stream.Position - raw.Length, raw);
     }
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> lexUnknownToken() 
     {
-        // report a bad token to some diagnostic?
-        
-        return success(SyntaxKind.BadToken, stream.Position, stream.Advance().ToString());
+        var badToken = success(SyntaxKind.BadToken, stream.Position, stream.Advance().ToString());
+
+        // reporting a bad token
+        diagnosticHandler.ReportBadTokenError(currLine, badToken.Value!.Value);
+
+        return badToken;
     }
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> lexKeywords(string raw)
     {

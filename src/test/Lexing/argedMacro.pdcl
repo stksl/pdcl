@@ -1,0 +1,3 @@
+#def add (x, y)  x + y * x
+
+int32 val = add(10, /* adds two numbers */ 20);

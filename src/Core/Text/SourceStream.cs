@@ -13,14 +13,22 @@ public interface ISourceStream
 /// </summary>
 public sealed class SourceStream : ISourceStream, IDisposable
 {
-    private FileStream _stream;
+    private Stream _stream;
     public SourceStream(string path)
     {
         if (!path.EndsWith(".pdcl")) 
             throw new ArgumentException("Not a .pdcl file");
-
         _stream = new FileStream(path, FileMode.Open, FileAccess.Read);
         
+    }
+    /// <summary>
+    /// Saves stream in-memory instead of opening a file
+    /// </summary>
+    /// <param name="memoryString"></param>
+    internal SourceStream(char[] memoryString) 
+    {
+        byte[] bytes = Encoding.UTF8.GetBytes(memoryString);
+        _stream = new MemoryStream(bytes, 0, bytes.Length);
     }
 
     public int Position 
@@ -31,8 +39,9 @@ public sealed class SourceStream : ISourceStream, IDisposable
     public bool EOF => Position == _stream.Length;
     public char Peek() 
     {
-        int c = _stream.ReadByte(); 
-        Position--;
+        int pos = Position;
+        int c = _stream.ReadByte();
+        Position = pos;
         return (char)c;
     }
     public char Advance() 

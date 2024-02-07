@@ -9,14 +9,28 @@ namespace Pdcl.Core.Preproc;
 /// </summary>
 public sealed class PreprocContext 
 {
-    public readonly MacroBag<Macro> DefinedMacros;
-    public readonly MacroBag<NonDefinedMacro> NonDefMacros;
+    public readonly Bag<IDirective> Directives;
+    public readonly Bag<NonDefinedMacro> NonDefMacros;
     /// <summary>
     /// Value - subtitution TextPosition and substitution string
     /// </summary>
     public PreprocContext()
     {
-        DefinedMacros = new MacroBag<Macro>(null);
-        NonDefMacros = new MacroBag<NonDefinedMacro>(null);
+        NonDefMacros = new Bag<NonDefinedMacro>();
+        Directives = new Bag<IDirective>();
+    }
+
+    public void AddDirective(IDirective directive) 
+    {
+        Directives.Insert(directive);
+    }
+    public IDirective? GetDirective(int hashcode) 
+    {
+        return Directives.Get(hashcode);
+    }
+    public void PrepareForNewFile() 
+    {
+        Directives.AddLast();
+        NonDefMacros.AddLast();
     }
 }

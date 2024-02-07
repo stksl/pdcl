@@ -17,7 +17,10 @@ public sealed class DiagnosticsBag : IEnumerable<IDiagnostic>
     {
         diagnostics.Add(err);
     }
-    
+    public void ReportWarning(Warning warn) 
+    {
+        diagnostics.Add(warn);
+    }
 
     public IEnumerator<IDiagnostic> GetEnumerator() => diagnostics.GetEnumerator();
 

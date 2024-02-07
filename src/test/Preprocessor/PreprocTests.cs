@@ -6,44 +6,46 @@ using Pdcl.Core.Text;
 
 namespace Pdcl.Test;
 
-public partial class PreprocTest 
+public partial class PreprocTest
 {
     [Fact]
-    public MacroBag<Macro> HandleMacro_Test()
+    public IEnumerable<Macro> HandleMacro_Test()
     {
         // Booting up the preprocessor
         PreprocContext ctx = new PreprocContext();
         using SourceStream stream = new SourceStream(GetRelativePath() + "Preprocessor/macro.pdcl");
         Preprocessor preproc = new Preprocessor(stream, ctx);
-        
+
         // Expected names
-        string[] macrosNames = {"PI", "struct0_", "someArgedMacro"};
+        string[] macrosNames = { "PI", "struct0_", "someArgedMacro" };
 
         IAnalyzerResult<IDirective, Preprocessor.PreprocStatusCode> macro = preproc.NextDirective();
-        for(int i = 0; i < macrosNames.Length; i++) 
+        for (int i = 0; i < macrosNames.Length; i++)
         {
             Assert.True(!macro.IsFailed && macrosNames[i] == macro.Value!.Name);
-            ctx.DefinedMacros.InsertMacro((Macro)macro.Value);
+            Macro m = (Macro)macro.Value;
+
+            ctx.AddDirective(m);
             macro = preproc.NextDirective();
         }
 
         // Non-first token
         Assert.True(macro.Status == Preprocessor.PreprocStatusCode.NonFirstToken);
-        return ctx.DefinedMacros;
+        return ctx.Directives.Select(i => (Macro)i);
 
     }
     [Fact]
-    public void HandleIfdef_Test() 
+    public void HandleIfdef_Test()
     {
         // HandleMacro_Test is a dependency and has to work fine
-        MacroBag<Macro> bag = HandleMacro_Test(); // handling defined macros in "./macro.pdcl"
+        IEnumerable<Macro> bag = HandleMacro_Test(); // handling defined macros in "./macro.pdcl"
 
         using SourceStream stream = new SourceStream(GetRelativePath() + "Preprocessor/ifdef.pdcl");
 
         PreprocContext ctx = new PreprocContext();
 
-        foreach(Macro macro in bag) 
-            Assert.True(ctx.DefinedMacros.InsertMacro(macro));
+        foreach (Macro macro in bag)
+            ctx.AddDirective(macro);
 
         Preprocessor preproc = new Preprocessor(stream, ctx);
         /* 

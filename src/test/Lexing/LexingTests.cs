@@ -10,7 +10,7 @@ public sealed class LexingTests
     public void LexingTest_MAIN() 
     {
         using SourceStream stream = new SourceStream(GetRelativePath() + "Lexing/general.pdcl");
-        Lexer lexer = new Lexer(stream, new Core.Preproc.PreprocContext());
+        Lexer lexer = new Lexer(stream, new PreprocContext(), new Core.Diagnostics.DiagnosticHandler());
 
         SyntaxKind[] kinds = 
         {
@@ -68,9 +68,9 @@ public sealed class LexingTests
         Assert.True(res.Status == LexerStatusCode.EOF);
     }
     [Fact]
-    public void LexingText_Macro() 
+    public void LexingTest_ArgedMacro() 
     {
-        /* SourceStream stream = new SourceStream(GetRelativePath() + "Lexing/macro.pdcl");
+        SourceStream stream = new SourceStream(GetRelativePath() + "Lexing/argedMacro.pdcl");
 
         PreprocContext context = new PreprocContext();
         Preprocessor preproc = new Preprocessor(stream, context);
@@ -78,7 +78,7 @@ public sealed class LexingTests
         while (!preproc.NextDirective().IsFailed);
 
         stream.Dispose();
-        stream = new SourceStream(GetRelativePath() + "Lexing/macro.pdcl");
+        stream = new SourceStream(GetRelativePath() + "Lexing/argedMacro.pdcl");
 
         SyntaxKind[] kinds = 
         {
@@ -89,21 +89,78 @@ public sealed class LexingTests
             SyntaxKind.TriviaToken,
             SyntaxKind.EqualToken, // =
             SyntaxKind.TriviaToken,
-            SyntaxKind.NumberToken, // 10
-            SyntaxKind.TriviaToken,
-            SyntaxKind.PlusToken, // +
-            SyntaxKind.TriviaToken,
-            SyntaxKind.NumberToken, // 20
+            SyntaxKind.MacroSubstitutedToken,
             SyntaxKind.SemicolonToken,
         };
 
-        Lexer lexer = new Lexer(stream, context);
+
+        SyntaxKind[] macroKinds = 
+        {
+            SyntaxKind.TriviaToken,
+            SyntaxKind.NumberToken,
+            SyntaxKind.TriviaToken,
+            SyntaxKind.PlusToken,
+            SyntaxKind.TriviaToken,
+            SyntaxKind.NumberToken,
+        }; 
+        Lexer lexer = new Lexer(stream, context, new Core.Diagnostics.DiagnosticHandler());
         IAnalyzerResult<SyntaxToken?, LexerStatusCode> res = lexer.Lex();
         for(int i = 0; i < kinds.Length; i++) 
         {
             Assert.Equal(kinds[i], res.Value!.Value.Kind);
-
+            if (res.Value.Value.Kind == SyntaxKind.MacroSubstitutedToken) 
+            {
+                SourceStream stream1 = new SourceStream(res.Value.Value.Metadata.Raw.ToCharArray());
+                Lexer macroLexer =new Lexer(stream1, context, new Core.Diagnostics.DiagnosticHandler());
+                var res2 = macroLexer.Lex();
+                for(int j = 0; j < macroKinds.Length; j++) 
+                {
+                    Assert.Equal(macroKinds[j], res2.Value!.Value.Kind);
+                    res2 = macroLexer.Lex();
+                }
+            }
             res = lexer.Lex();
-        } */
+        }
+        stream.Dispose();
+    }
+    [Fact]
+    public void LexingTest_Macro() 
+    {
+        SourceStream stream = new SourceStream(GetRelativePath() + "Lexing/macro.pdcl");
+
+        PreprocContext ctx = new PreprocContext();
+        Preprocessor preproc = new Preprocessor(stream, ctx);
+        while (!preproc.NextDirective().IsFailed);
+
+        SyntaxKind[] kinds = 
+        {
+            SyntaxKind.TriviaToken,
+            SyntaxKind.TextToken,
+            SyntaxKind.TriviaToken,
+            SyntaxKind.TextToken,       
+            SyntaxKind.OpenParentheseToken,       
+            SyntaxKind.CloseParentheseToken,       
+            SyntaxKind.TriviaToken,
+            SyntaxKind.MacroSubstitutedToken,
+
+        };
+        stream.Dispose();
+        stream = new SourceStream(GetRelativePath() + "Lexing/macro.pdcl");
+        Lexer lexer = new Lexer(stream, ctx, new Core.Diagnostics.DiagnosticHandler());
+
+        IAnalyzerResult<SyntaxToken?, LexerStatusCode> res = lexer.Lex();
+        string substitution = "";
+        for(int i = 0; i < kinds.Length; i++) 
+        {
+            Assert.Equal(kinds[i], res.Value!.Value.Kind);
+            if (res.Value.Value.Kind == SyntaxKind.MacroSubstitutedToken) 
+                substitution = res.Value.Value.Metadata.Raw;
+            res = lexer.Lex();
+        }
+        lexer = new Lexer(new SourceStream(substitution.ToCharArray()), ctx, new Core.Diagnostics.DiagnosticHandler());
+
+        Assert.Equal("struct", lexer.Lex().Value!.Value.Metadata.Raw);
+
+        stream.Dispose();
     }
 }

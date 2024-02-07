@@ -1,3 +1,4 @@
-#def add(x, y)  x + y
+#def macro struct
 
-int32 val = add(10, /* adds two numbers */ 20);
+
+void macro123() macro

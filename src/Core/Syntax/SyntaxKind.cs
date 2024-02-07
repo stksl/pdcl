@@ -49,7 +49,7 @@ public enum SyntaxKind : int
 
     TextToken, // text123_
     NumberToken, // 123, 1.23, 0xff, 0b00101
-
+    MacroSubstitutedToken,
     // keywords
     UseToken, // use
     WhileLoopToken, // while
