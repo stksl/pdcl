@@ -1,11 +1,13 @@
 namespace Pdcl.Core;
-
-public enum LexerStatusCode : int
+internal sealed partial class Lexer
 {
-    Success = 0,
+    public enum LexerStatusCode : int
+    {
+        Success = 0,
 
-    OutOfLiteralRange, // when parsing hex or binary numbers
-    EscapeExpected, // for string/char literals
-    PreprocError,
-    EOF,    
+        OutOfLiteralRange, // when parsing hex or binary numbers
+        EscapeExpected, // for string/char literals
+        PreprocError,
+        EOF,
+    }
 }

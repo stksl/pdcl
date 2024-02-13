@@ -30,28 +30,28 @@ public sealed class SourceStream : ISourceStream, IDisposable
         byte[] bytes = Encoding.UTF8.GetBytes(memoryString);
         _stream = new MemoryStream(bytes, 0, bytes.Length);
     }
-
     public int Position 
     {
         get => (int)_stream.Position;
         set => _stream.Position = value;
     }
-    public bool EOF => Position == _stream.Length;
+    public bool EOF => Position >= _stream.Length;
     public char Peek() 
     {
         int pos = Position;
-        int c = _stream.ReadByte();
+        char c = (char)_stream.ReadByte();
         Position = pos;
-        return (char)c;
+        return c;
     }
     public char Advance() 
     {
         return (char)_stream.ReadByte();
     }
-    public string Advance(int len, out int read) 
+    public string Advance(int length, out int bytesRead) 
     {
-        byte[] buf = new byte[len];
-        read = _stream.Read(buf, 0, len);
+        byte[] buf = new byte[length];
+        int read = _stream.Read(buf, 0, length);
+        bytesRead = read; 
         return Encoding.ASCII.GetString(buf);
     }
     private int handleComment(bool isSingleLine)
@@ -59,12 +59,12 @@ public sealed class SourceStream : ISourceStream, IDisposable
         int len = 0;
         if (isSingleLine)
         {
-            while (!EOF && Advance() != '\n') len++;
+            while (Advance() != '\n') len++;
         }
         else
         {
             string prev = Peek().ToString();
-            while (!EOF && prev + Peek() != "*/")
+            while (prev + Peek() != "*/")
             {
                 len++;
                 prev = Advance().ToString();

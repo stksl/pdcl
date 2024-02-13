@@ -9,10 +9,10 @@ namespace Pdcl.Test;
 public partial class PreprocTest
 {
     [Fact]
-    public IEnumerable<Macro> HandleMacro_Test()
+    public LinkedList<IDictionary<int, Macro>> HandleMacro_Test()
     {
         // Booting up the preprocessor
-        PreprocContext ctx = new PreprocContext();
+        PreprocContext ctx = new PreprocContext(null);
         using SourceStream stream = new SourceStream(GetRelativePath() + "Preprocessor/macro.pdcl");
         Preprocessor preproc = new Preprocessor(stream, ctx);
 
@@ -23,29 +23,23 @@ public partial class PreprocTest
         for (int i = 0; i < macrosNames.Length; i++)
         {
             Assert.True(!macro.IsFailed && macrosNames[i] == macro.Value!.Name);
-            Macro m = (Macro)macro.Value;
 
-            ctx.AddDirective(m);
+            ctx.Macros.Last!.Value[macro.Value.GetHashCode()] = (Macro)macro.Value;
             macro = preproc.NextDirective();
         }
 
         // Non-first token
         Assert.True(macro.Status == Preprocessor.PreprocStatusCode.NonFirstToken);
-        return ctx.Directives.Select(i => (Macro)i);
+        return ctx.Macros;
 
     }
     [Fact]
     public void HandleIfdef_Test()
     {
         // HandleMacro_Test is a dependency and has to work fine
-        IEnumerable<Macro> bag = HandleMacro_Test(); // handling defined macros in "./macro.pdcl"
+        PreprocContext ctx = new PreprocContext(HandleMacro_Test());
 
         using SourceStream stream = new SourceStream(GetRelativePath() + "Preprocessor/ifdef.pdcl");
-
-        PreprocContext ctx = new PreprocContext();
-
-        foreach (Macro macro in bag)
-            ctx.AddDirective(macro);
 
         Preprocessor preproc = new Preprocessor(stream, ctx);
         /* 
@@ -56,20 +50,18 @@ public partial class PreprocTest
 
         IAnalyzerResult<IDirective, Preprocessor.PreprocStatusCode> dir = preproc.NextDirective();
         Assert.True(!dir.IsFailed && ((Ifdef)dir.Value!).Result == false);
-        dir = preproc.NextDirective();
-        Assert.True(!dir.IsFailed && dir.Value is EndIf);
         /*
             #ifdef someArgedMacro
             #endif
         */
         dir = preproc.NextDirective();
         Assert.True(!dir.IsFailed && ((Ifdef)dir.Value!).Result);
-        dir = preproc.NextDirective();
-        Assert.True(!dir.IsFailed && dir.Value is EndIf);
         /*
-            #ifdef
+            #ifndef someArgedMacro
+                #ifdef someArgedMacro
+                #endif
         */
         dir = preproc.NextDirective();
-        Assert.True(dir.IsFailed);
+        Assert.Equal(Preprocessor.PreprocStatusCode.EOF, dir.Status);
     }
 }

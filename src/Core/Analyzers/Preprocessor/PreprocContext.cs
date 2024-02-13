@@ -9,28 +9,40 @@ namespace Pdcl.Core.Preproc;
 /// </summary>
 public sealed class PreprocContext 
 {
-    public readonly Bag<IDirective> Directives;
-    public readonly Bag<NonDefinedMacro> NonDefMacros;
     /// <summary>
-    /// Value - subtitution TextPosition and substitution string
+    /// All macros defined throughout the project.
     /// </summary>
-    public PreprocContext()
+    public readonly LinkedList<IDictionary<int, Macro>> Macros;
+    /// <summary>
+    /// Directives declared in the file.
+    /// </summary>
+    public readonly IDictionary<int, IDirective> Directives;
+    public readonly IDictionary<int, NonDefinedMacro> NonDefMacros;
+    public PreprocContext(LinkedList<IDictionary<int, Macro>>? prevMacros)
     {
-        NonDefMacros = new Bag<NonDefinedMacro>();
-        Directives = new Bag<IDirective>();
+        Directives = new Dictionary<int, IDirective>();
+        NonDefMacros = new Dictionary<int, NonDefinedMacro>();
+
+        prevMacros ??= new LinkedList<IDictionary<int, Macro>>();
+        prevMacros.AddLast(new LinkedListNode<IDictionary<int, Macro>>(new Dictionary<int, Macro>()));
+
+        Macros = new LinkedList<IDictionary<int, Macro>>(prevMacros);
     }
 
-    public void AddDirective(IDirective directive) 
+    public Macro? FindMacro(int key) 
     {
-        Directives.Insert(directive);
+        foreach(var dict in Macros) 
+        {
+            if (dict.TryGetValue(key, out Macro? macro))
+                return macro;
+        }
+        return null;
     }
-    public IDirective? GetDirective(int hashcode) 
+    public IDirective? SkipFromDirective(int key, int offset) 
     {
-        return Directives.Get(hashcode);
-    }
-    public void PrepareForNewFile() 
-    {
-        Directives.AddLast();
-        NonDefMacros.AddLast();
+        int[] keys = Directives.Keys.ToArray();
+
+        int off = key + offset;
+        return off < keys.Length ? Directives[keys[off]] : null;
     }
 }

@@ -6,5 +6,7 @@
 #ifdef someArgedMacro
 #endif
 
-// [2] EXPECTED: Non existing directive
-#ifdef
+// [2] EXPECTED: EOF exception (no endif)
+#ifndef someArgedMacro
+    #ifdef someArgedMacro
+    #endif

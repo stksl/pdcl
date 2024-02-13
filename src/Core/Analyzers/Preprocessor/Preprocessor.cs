@@ -20,10 +20,14 @@ internal sealed partial class Preprocessor
         stream = stream_;
         context = context_;
 
-        definedMacros = new Dictionary<string, Macro>(context_.Directives
-            .Where(i => i is Macro)
-            .Select(i => new KeyValuePair<string, Macro>(i.Name, (Macro)i))
-            );
+        definedMacros = new Dictionary<string, Macro>();
+        foreach (var macros in context.Macros)
+        {
+            foreach (var macro in macros)
+            {
+                definedMacros[macro.Value.Name] = macro.Value;
+            }
+        }
     }
     private string? handleText()
     {
@@ -61,32 +65,39 @@ internal sealed partial class Preprocessor
     {
         lock (_lock)
         {
-            while (stream.Peek() != DirectiveLiteral)
-            {
-                if (stream.EOF)
-                    return new AnalyzerResult<IDirective, PS_Code>(null, PS_Code.EOF);
-                if (!stream.handleLeadingTrivia(out _, out _))
-                {
-                    firstTokenSeen = true;
-
-                    definedMacros.TryGetValue(handleText() ?? "", out Macro? macro);
-                    if (macro == null)
-                    {
-                        stream.Position++;
-                        continue;
-                    }
-
-                    NonDefinedMacro? parsed = tryParseMacro(macro!);
-                    if (parsed == null)
-                    {
-                        return new AnalyzerResult<IDirective, PS_Code>(null, PS_Code.UnknownDeclaration);
-                        // report an error
-                    } else context.NonDefMacros.Insert(parsed);
-                }
-            }
-            stream.Position++;
-            return parseDirective();
+            var res = nextDirective();
+            if (!res.IsFailed) 
+                context.Directives[res.Value!.Position.Position] = res.Value;
+            return res;
         }
+    }
+    private IAnalyzerResult<IDirective, PS_Code> nextDirective()
+    {
+        while (stream.Peek() != DirectiveLiteral)
+        {
+            if (stream.EOF)
+                    return new AnalyzerResult<IDirective, PS_Code>(null, PS_Code.EOF);
+            if (stream.handleLeadingTrivia(out _, out _)) continue;
+
+            firstTokenSeen = true;
+
+            definedMacros.TryGetValue(handleText() ?? "", out Macro? macro);
+            if (macro == null)
+            {
+                stream.Position++;
+                continue;
+            }
+
+            NonDefinedMacro? parsed = tryParseMacro(macro!);
+            if (parsed == null)
+            {
+                return new AnalyzerResult<IDirective, PS_Code>(null, PS_Code.UnknownDeclaration);
+                // report an error
+            }
+            else context.NonDefMacros[parsed.GetHashCode()] = parsed;
+        }
+        stream.Position++;
+        return parseDirective();
     }
     private NonDefinedMacro? tryParseMacro(Macro macro)
     {
@@ -95,7 +106,7 @@ internal sealed partial class Preprocessor
 
         if (macro is ArgumentedMacro argedMacro)
         {
-            if (stream.Advance() != '(') 
+            if (stream.Advance() != '(')
                 return null;
 
             StringBuilder passedArg = new StringBuilder();
@@ -105,7 +116,7 @@ internal sealed partial class Preprocessor
 
                 while (stream.Peek() != ',')
                 {
-                    if (stream.Peek() == ')' && i == argedMacro.ArgNames.Length - 1) 
+                    if (stream.Peek() == ')' && i == argedMacro.ArgNames.Length - 1)
                     {
                         stream.Position--;
                         break;
@@ -139,8 +150,8 @@ internal sealed partial class Preprocessor
                     return parseMacro(pos);
                 case "ifdef":
                     return parseIfdef(pos);
-                case "else":
-                    return parseElse(pos);
+                case "ifndef":
+                    return parseIfNotdef(pos);
                 case "endif":
                     return parseEndif(pos);
 
@@ -156,17 +167,33 @@ internal sealed partial class Preprocessor
         {
             return new AnalyzerResult<Ifdef, PS_Code>(null, PS_Code.UnknownDeclaration);
         }
-        Ifdef ifdef = new Ifdef(macroName,
-            new TextPosition(startPos, stream.Position - startPos),
-            definedMacros.ContainsKey(macroName));
 
-        return new AnalyzerResult<Ifdef, PS_Code>(ifdef,
-            stream.handleLeadingTrivia(out _, out _) ? PS_Code.Success : PS_Code.UnknownDeclaration);
+        List<IDirective> children = new List<IDirective>();
+
+        IAnalyzerResult<IDirective?, PS_Code> nextDir = nextDirective();
+        while (nextDir.Value is not EndIf)
+        {
+            if (nextDir.IsFailed)
+                return new AnalyzerResult<Ifdef, PS_Code>(null, nextDir.Status);
+
+            children.Add(nextDir.Value!);
+            nextDir = nextDirective();
+        }
+
+        return new AnalyzerResult<Ifdef, PS_Code>(
+            new Ifdef(new TextPosition(startPos, stream.Position - startPos), 
+                definedMacros.ContainsKey(macroName), 
+                children),
+            PS_Code.Success);
     }
-    private IAnalyzerResult<Else, PS_Code> parseElse(int startPos)
+    private IAnalyzerResult<IfNotdef, PS_Code> parseIfNotdef(int startPos)
     {
-        // #else
-        return new AnalyzerResult<Else, PS_Code>(new Else(new TextPosition(startPos, stream.Position - startPos)), PS_Code.Success);
+        var ifDef = parseIfdef(startPos);
+        if (ifDef.IsFailed) return new AnalyzerResult<IfNotdef, PS_Code>(null, ifDef.Status);
+
+        IfNotdef ifNotdef = new IfNotdef(ifDef.Value!.Position, ifDef.Value.GetChildren());
+
+        return new AnalyzerResult<IfNotdef, PS_Code>(ifNotdef, ifDef.Status);
     }
     private IAnalyzerResult<EndIf, PS_Code> parseEndif(int startPos)
     {
@@ -205,13 +232,13 @@ internal sealed partial class Preprocessor
 
             output = new ArgumentedMacro(name, handleMacroText(), argNames, new TextPosition(startPos, stream.Position - startPos));
         }
-        else 
+        else
         {
             stream.handleLeadingTrivia(out _, out _);
             output = new Macro(name, handleMacroText(), new TextPosition(startPos, stream.Position - startPos));
         }
         definedMacros[name] = output;
-        context.AddDirective(output);
+        context.Macros.Last!.Value[output.GetHashCode()] = output;
         return new AnalyzerResult<Macro, PS_Code>(output, PS_Code.Success);
     }
 }

@@ -1,4 +1,6 @@
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Pdcl.Core.Diagnostics;
 using Pdcl.Core.Preproc;
@@ -9,34 +11,19 @@ internal sealed partial class Lexer
 {
     private readonly SourceStream stream;
     private readonly PreprocContext context;
-    private readonly DiagnosticHandler diagnosticHandler;
-
     public ImmutableDictionary<int, ISyntaxTrivia> TriviasMap => triviasMap.ToImmutableDictionary();
     private Dictionary<int, ISyntaxTrivia> triviasMap;
     private object _lock = new object();
+    private int[] directivesPos;
     public int currLine { get; private set; }
-    public static readonly IDictionary<string, SyntaxKind> SyntaxKeywords = new Dictionary<string, SyntaxKind>(
-        new KeyValuePair<string, SyntaxKind>[]
-        {
-            new KeyValuePair<string, SyntaxKind>("use", SyntaxKind.UseToken),
-            new KeyValuePair<string, SyntaxKind>("if", SyntaxKind.IfToken),
-            new KeyValuePair<string, SyntaxKind>("elif", SyntaxKind.ElifToken),
-            new KeyValuePair<string, SyntaxKind>("else", SyntaxKind.ElseToken),
-            new KeyValuePair<string, SyntaxKind>("for", SyntaxKind.ForLoopToken),
-            new KeyValuePair<string, SyntaxKind>("while", SyntaxKind.WhileLoopToken),
-            new KeyValuePair<string, SyntaxKind>("namespace", SyntaxKind.NamespaceToken),
-            new KeyValuePair<string, SyntaxKind>("pinv", SyntaxKind.PInvToken),
-            new KeyValuePair<string, SyntaxKind>("struct", SyntaxKind.StructToken),
-            new KeyValuePair<string, SyntaxKind>("return", SyntaxKind.ReturnToken),
-            new KeyValuePair<string, SyntaxKind>("il_inline", SyntaxKind.IL_InlineToken),
-        });
     public Lexer(SourceStream _stream, PreprocContext ctx, DiagnosticHandler diagnosticHandler_)
     {
         stream = _stream;
         context = ctx;
-        diagnosticHandler = diagnosticHandler_;
 
         triviasMap = new Dictionary<int, ISyntaxTrivia>();
+
+        directivesPos = context.Directives.Keys.ToArray();
     }
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> success(SyntaxKind kind, int startPos, string? raw) =>
         new AnalyzerResult<SyntaxToken?, LexerStatusCode>(new SyntaxToken(kind, new LexemeMetadata(
@@ -47,7 +34,6 @@ internal sealed partial class Lexer
     {
         lock (_lock)
         {
-            if (stream.EOF) return EOF();
             return lex();
         }
     }
@@ -57,6 +43,8 @@ internal sealed partial class Lexer
     */
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> lex()
     {
+        if (stream.EOF) return EOF();
+
         // checking basic trivia (whitespace or newline)
         switch (stream.Peek())
         {
@@ -76,7 +64,13 @@ internal sealed partial class Lexer
         switch (stream.Peek())
         {
             case '+':
-                return success(SyntaxKind.PlusToken, stream.Position++, "+");
+                stream.Position++;
+                if (stream.Peek() == '+')
+                {
+                    stream.Position++;
+                    return success(SyntaxKind.IncrementToken, stream.Position - 2, "++");
+                }
+                return success(SyntaxKind.PlusToken, stream.Position - 1, "+");
             case '-':
                 int pos = stream.Position;
                 stream.Position++;
@@ -85,9 +79,14 @@ internal sealed partial class Lexer
                     triviasMap[trivia_!.Position.Position] = trivia_;
                     currLine += linesSkipped_;
                 }
+                else if (stream.Peek() == '-')
+                {
+                    stream.Position++;
+                    return success(SyntaxKind.DecrementToken, stream.Position - 2, "--");
+                }
+
                 if (char.IsDigit(stream.Peek()))
                     return lexNumber(isNegative: true);
-
                 return success(SyntaxKind.MinusToken, pos, "-");
             case '*':
                 return success(SyntaxKind.StarToken, stream.Position++, "*");
@@ -177,10 +176,9 @@ internal sealed partial class Lexer
             case '}':
                 return success(SyntaxKind.CloseBraceToken, stream.Position++, "}");
             case '#':
-                Macro? m = context.GetDirective(stream.Position) as Macro;
-                if (m != null) 
+                if (context.Directives.TryGetValue(stream.Position, out IDirective? directive))
                 {
-                    stream.Position += m.Position.Length;
+                    stream.Position += directive.Position.Length;
                     return lex();
                 }
                 return success(SyntaxKind.HashToken, stream.Position++, "#");
@@ -202,14 +200,12 @@ internal sealed partial class Lexer
     }
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> lexText()
     {
-        if (!char.IsLetter(stream.Peek())) 
+        if (!char.IsLetter(stream.Peek()))
         {
             return lexUnknownToken();
         }
 
-        NonDefinedMacro? nonDefMacro = context.NonDefMacros.Get(stream.Position);
-
-        if (nonDefMacro != null) 
+        if (context.NonDefMacros.TryGetValue(stream.Position, out NonDefinedMacro? nonDefMacro))
         {
             stream.Position += nonDefMacro.Position.Length;
             return success(SyntaxKind.MacroSubstitutedToken, stream.Position, nonDefMacro.Substitution);
@@ -227,12 +223,9 @@ internal sealed partial class Lexer
 
         return success(SyntaxKind.TextToken, stream.Position - raw.Length, raw);
     }
-    private IAnalyzerResult<SyntaxToken?, LexerStatusCode> lexUnknownToken() 
+    private IAnalyzerResult<SyntaxToken?, LexerStatusCode> lexUnknownToken()
     {
         var badToken = success(SyntaxKind.BadToken, stream.Position, stream.Advance().ToString());
-
-        // reporting a bad token
-        diagnosticHandler.ReportBadTokenError(currLine, badToken.Value!.Value);
 
         return badToken;
     }
@@ -261,7 +254,7 @@ internal sealed partial class Lexer
     {
         StringBuilder sb = new StringBuilder();
         if (isNegative) sb.Append('-');
-        // possibly a hex number literal
+
         if (stream.Advance() == '0' && stream.Peek() == 'x')
         {
             // a hex number
@@ -272,6 +265,8 @@ internal sealed partial class Lexer
                     return new AnalyzerResult<SyntaxToken?, LexerStatusCode>(null, LexerStatusCode.OutOfLiteralRange);
                 sb.Append(stream.Advance());
             }
+
+            sb = new StringBuilder(Convert.ToString(Convert.ToUInt64(sb.ToString(), fromBase: 16)));
         }
         else
         {

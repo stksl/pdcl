@@ -39,6 +39,9 @@ public enum SyntaxKind : int
     NotEqualToken, // !=
     ShortAndToken, // &&
     ShortOrToken, // || 
+    // unary operators
+    IncrementToken, // ++
+    DecrementToken, // --
     // additional bitwise binary operators
     LeftShiftToken, // <<
     RightShiftToken, // >>
