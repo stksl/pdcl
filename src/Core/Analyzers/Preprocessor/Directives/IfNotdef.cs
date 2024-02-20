@@ -4,8 +4,9 @@ namespace Pdcl.Core.Preproc;
 
 public sealed class IfNotdef : BranchedDirective 
 {
-    public IfNotdef(TextPosition header, IList<IDirective> children) : base("ifndef", header, children)
+    public IfNotdef(TextPosition header, bool res, IList<IDirective> children, TextPosition bodyPos) 
+        : base("ifndef", header, children, bodyPos)
     {
-        
+        Result = res;
     }
 }

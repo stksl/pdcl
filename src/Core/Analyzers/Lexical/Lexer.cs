@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Pdcl.Core.Diagnostics;
@@ -14,16 +15,16 @@ internal sealed partial class Lexer
     public ImmutableDictionary<int, ISyntaxTrivia> TriviasMap => triviasMap.ToImmutableDictionary();
     private Dictionary<int, ISyntaxTrivia> triviasMap;
     private object _lock = new object();
-    private int[] directivesPos;
+
+    // endif directive position and length (in case inside a branched directive to skip #endif)
+    private TextPosition endifPos;
     public int currLine { get; private set; }
-    public Lexer(SourceStream _stream, PreprocContext ctx, DiagnosticHandler diagnosticHandler_)
+    public Lexer(SourceStream _stream, PreprocContext ctx)
     {
         stream = _stream;
         context = ctx;
 
         triviasMap = new Dictionary<int, ISyntaxTrivia>();
-
-        directivesPos = context.Directives.Keys.ToArray();
     }
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> success(SyntaxKind kind, int startPos, string? raw) =>
         new AnalyzerResult<SyntaxToken?, LexerStatusCode>(new SyntaxToken(kind, new LexemeMetadata(
@@ -178,7 +179,12 @@ internal sealed partial class Lexer
             case '#':
                 if (context.Directives.TryGetValue(stream.Position, out IDirective? directive))
                 {
-                    stream.Position += directive.Position.Length;
+                    handleDirective(directive);
+                    return lex();
+                }
+                else if (endifPos.Position == stream.Position)
+                {
+                    stream.Position += endifPos.Length;
                     return lex();
                 }
                 return success(SyntaxKind.HashToken, stream.Position++, "#");
@@ -342,5 +348,25 @@ internal sealed partial class Lexer
         }
 
         return null;
+    }
+
+    private void handleDirective(IDirective dir)
+    {
+        switch (dir)
+        {
+            case BranchedDirective branched:
+                if (!branched.Result) 
+                {
+                    goto default;
+                }
+                stream.Position = branched.BodyPosition.Position;
+                int endifpos_ = stream.Position + branched.BodyPosition.Length;
+
+                endifPos = new TextPosition(endifpos_, dir.Position.Position + dir.Position.Length - endifpos_);
+                break;
+            default:
+                stream.Position += dir.Position.Length;
+                break;
+        }
     }
 }

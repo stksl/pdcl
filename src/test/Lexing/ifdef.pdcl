@@ -1,0 +1,9 @@
+void main() 
+{
+    #ifndef notDefined
+    int32 i;
+    #endif
+    #ifdef notDefined // has to be skipped
+    int64 l = 100;
+    #endif
+}

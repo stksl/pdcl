@@ -1,0 +1,20 @@
+Common Type System:
+
+The language is fully translated into CIL and thus CLS-compliant 
+```c
+boolean - bool
+
+uint8 - Byte
+uint16 - unsigned short
+int16 - short
+uint32 - unsigned int
+int32 - int
+uint64 - unsigned long
+int64 - long
+
+single - float
+double - double
+
+char - char
+string - string
+```

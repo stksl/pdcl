@@ -19,13 +19,13 @@ public partial class PreprocTest
         // Expected names
         string[] macrosNames = { "PI", "struct0_", "someArgedMacro" };
 
-        IAnalyzerResult<IDirective, Preprocessor.PreprocStatusCode> macro = preproc.NextDirective();
+        IAnalyzerResult<IDirective, Preprocessor.PreprocStatusCode> macro = preproc.NextDirectiveAsync().Result;
         for (int i = 0; i < macrosNames.Length; i++)
         {
             Assert.True(!macro.IsFailed && macrosNames[i] == macro.Value!.Name);
 
             ctx.Macros.Last!.Value[macro.Value.GetHashCode()] = (Macro)macro.Value;
-            macro = preproc.NextDirective();
+            macro = preproc.NextDirectiveAsync().Result;
         }
 
         // Non-first token
@@ -48,20 +48,20 @@ public partial class PreprocTest
         */
 
 
-        IAnalyzerResult<IDirective, Preprocessor.PreprocStatusCode> dir = preproc.NextDirective();
+        IAnalyzerResult<IDirective, Preprocessor.PreprocStatusCode> dir = preproc.NextDirectiveAsync().Result;
         Assert.True(!dir.IsFailed && ((Ifdef)dir.Value!).Result == false);
         /*
             #ifdef someArgedMacro
             #endif
         */
-        dir = preproc.NextDirective();
+        dir = preproc.NextDirectiveAsync().Result;
         Assert.True(!dir.IsFailed && ((Ifdef)dir.Value!).Result);
         /*
             #ifndef someArgedMacro
                 #ifdef someArgedMacro
                 #endif
         */
-        dir = preproc.NextDirective();
+        dir = preproc.NextDirectiveAsync().Result;
         Assert.Equal(Preprocessor.PreprocStatusCode.EOF, dir.Status);
     }
 }

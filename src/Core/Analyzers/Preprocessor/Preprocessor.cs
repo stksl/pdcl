@@ -13,7 +13,6 @@ internal sealed partial class Preprocessor
     public const char DirectiveLiteral = '#';
     private readonly SourceStream stream;
     private readonly PreprocContext context;
-    private object _lock = new object();
     private Dictionary<string, Macro> definedMacros;
     public Preprocessor(SourceStream stream_, PreprocContext context_)
     {
@@ -61,17 +60,14 @@ internal sealed partial class Preprocessor
     /// </summary>
     /// <returns></returns>
     /// <exception cref="EndOfStreamException"></exception>
-    public IAnalyzerResult<IDirective, PS_Code> NextDirective()
+    public async Task<IAnalyzerResult<IDirective, PS_Code>> NextDirectiveAsync()
     {
-        lock (_lock)
-        {
-            var res = nextDirective();
-            if (!res.IsFailed) 
-                context.Directives[res.Value!.Position.Position] = res.Value;
-            return res;
-        }
+        var res = await nextDirectiveAsync();
+        if (!res.IsFailed) 
+            context.Directives[res.Value!.Position.Position] = res.Value;
+        return res;
     }
-    private IAnalyzerResult<IDirective, PS_Code> nextDirective()
+    private async Task<IAnalyzerResult<IDirective, PS_Code>> nextDirectiveAsync()
     {
         while (stream.Peek() != DirectiveLiteral)
         {
@@ -97,7 +93,7 @@ internal sealed partial class Preprocessor
             else context.NonDefMacros[parsed.GetHashCode()] = parsed;
         }
         stream.Position++;
-        return parseDirective();
+        return await parseDirectiveAsync();
     }
     private NonDefinedMacro? tryParseMacro(Macro macro)
     {
@@ -135,7 +131,7 @@ internal sealed partial class Preprocessor
         }
         return new NonDefinedMacro(new TextPosition(pos, stream.Position - pos), sub);
     }
-    private IAnalyzerResult<IDirective, PS_Code> parseDirective()
+    private async Task<IAnalyzerResult<IDirective, PS_Code>> parseDirectiveAsync()
     {
         int pos = stream.Position - 1; // position on '#' token
 
@@ -149,9 +145,9 @@ internal sealed partial class Preprocessor
                         return new AnalyzerResult<IDirective, PS_Code>(null, PS_Code.NonFirstToken);
                     return parseMacro(pos);
                 case "ifdef":
-                    return parseIfdef(pos);
+                    return await parseIfdefAsync(pos);
                 case "ifndef":
-                    return parseIfNotdef(pos);
+                    return await parseIfNotdefAsync(pos);
                 case "endif":
                     return parseEndif(pos);
 
@@ -159,39 +155,41 @@ internal sealed partial class Preprocessor
         }
         return new AnalyzerResult<IDirective, PS_Code>(null, PS_Code.NonExistingDirective);
     }
-    private IAnalyzerResult<Ifdef, PS_Code> parseIfdef(int startPos)
+    private async Task<IAnalyzerResult<Ifdef, PS_Code>> parseIfdefAsync(int startPos)
     {
         // #ifdef
         string? macroName = handleText();
-        if (macroName == null)
+        if (macroName == null || !stream.handleLeadingTrivia(out _, out _))
         {
             return new AnalyzerResult<Ifdef, PS_Code>(null, PS_Code.UnknownDeclaration);
         }
 
         List<IDirective> children = new List<IDirective>();
 
-        IAnalyzerResult<IDirective?, PS_Code> nextDir = nextDirective();
+        int bodyPos = stream.Position; 
+
+        IAnalyzerResult<IDirective?, PS_Code> nextDir = await nextDirectiveAsync();
         while (nextDir.Value is not EndIf)
         {
             if (nextDir.IsFailed)
                 return new AnalyzerResult<Ifdef, PS_Code>(null, nextDir.Status);
 
             children.Add(nextDir.Value!);
-            nextDir = nextDirective();
+            nextDir = await nextDirectiveAsync();
         }
-
         return new AnalyzerResult<Ifdef, PS_Code>(
             new Ifdef(new TextPosition(startPos, stream.Position - startPos), 
                 definedMacros.ContainsKey(macroName), 
-                children),
+                children, new TextPosition(bodyPos, stream.Position - nextDir.Value.Position.Length - bodyPos)),
             PS_Code.Success);
     }
-    private IAnalyzerResult<IfNotdef, PS_Code> parseIfNotdef(int startPos)
+    private async Task<IAnalyzerResult<IfNotdef, PS_Code>> parseIfNotdefAsync(int startPos)
     {
-        var ifDef = parseIfdef(startPos);
+        var ifDef = await parseIfdefAsync(startPos);
         if (ifDef.IsFailed) return new AnalyzerResult<IfNotdef, PS_Code>(null, ifDef.Status);
 
-        IfNotdef ifNotdef = new IfNotdef(ifDef.Value!.Position, ifDef.Value.GetChildren());
+        IfNotdef ifNotdef = new IfNotdef(ifDef.Value!.Position, 
+        !ifDef.Value!.Result, ifDef.Value.GetChildren(), ifDef.Value.BodyPosition);
 
         return new AnalyzerResult<IfNotdef, PS_Code>(ifNotdef, ifDef.Status);
     }

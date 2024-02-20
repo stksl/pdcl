@@ -1,0 +1,122 @@
+This file contains explanation about the language's syntax, such as ALL the keywords and their usage.
+
+KEYWORDS:
+
+. '[' and ']' symbols are used to generalize the syntactic implementation
+. when '[' or ']' is a part of syntax, a backslash is used '\'
+. 
+. == struct
+.     A structure definition token.
+.     
+.     -struct [name] [body]
+. 
+.     where [name] is a structure's name starting with an English letter and
+.     [body] is an enclosed body within '{' and '}' tokens. 
+. 
+. == use
+.     The keyword specifies which namespace to use.
+. 
+.     -use [namespace]
+. 
+.     where [namespace] is a namespace name
+. 
+. == il_inline 
+.     Inlines IL opcodes into a function's body. Must be enclosed with the same token.
+. 
+.     -il_inline
+.     -ldc.i4.0
+.     -ldloc.0
+.     -il_inline
+.     
+. == if
+.     If branched token.
+. 
+.     -if [condition] [body]
+. 
+.     where [condition] is a boolean type condition enclosed within '(' and ')' tokens and
+.     [body] is an enclosed body within '{' and '}' tokens.
+. 
+. == elif
+.     Else if branched token
+. 
+.     -elif [condition] [body]
+. 
+.     where [condition] is a boolean type condition enclosed within '(' and ')' tokens and
+.     [body] is an enclosed body within '{' and '}' tokens.
+. 
+. == else 
+.     Else branched token
+. 
+.     -else [body]
+. 
+.     where [body] is an enclosed body within '{' and '}' tokens.
+. 
+. == while
+.     While loop token
+. 
+.     -while [condition] [body]
+. 
+.     where [condition] is a boolean type condition enclosed within '(' and ')' tokens and
+.     [body] is an enclosed body within '{' and '}' tokens.
+. 
+.     Possible 'else' is accepted after the loop and is jumped into when condition is initially false. 
+. 
+.     -while [condition] [body]
+.     -else [body]
+. 
+. == for
+.     For loop token
+. 
+.     -for [header] [body]
+. 
+.     where [header] is a header consisting of [init] [condition] [iteration] 
+.         where [init] is a initialization section closed with ';' token
+.         where [condition] is a condition section closed with ';' token
+.         where [iteration] is an iteration section
+. 
+.         -(int32 i = 0; i < 10; i++)
+.     enclosed within '(' and ')' tokens.
+. 
+. == namespace 
+.     Namespace token
+. 
+.     -namespace [name]
+. 
+.     where [name] is a namespace name
+. 
+. == pinv
+.     P/Invoke token.
+. 
+.     several overloads:
+.     -[funcSig] pinv \[str\]; // where str = a calling dynamic library identifier of type 'string'
+.     -[funcSig] pinv \[str, call_conv\]; // call_conv - a calling convention identifier
+.     -[funcSig] pinv \[str, preserveSig\]; // preserve signature?
+.     -[funcSig] pinv \[str, call_conv, preserveSig\];
+. 
+.     where [funcSig] is a function signature (return type, name, arguments list)
+. 
+. == return
+.     Return token.
+. 
+.     -return [val]
+. 
+.     where [val] is a value of function's return type.
+. 
+
+FUNCTION DECLARATION:
+
+. Function declaration consists of a function signature and a function body.
+. 
+. -int32 funcName(int32 arg1, nint arg2) {}
+. 
+
+STRUCTURE DECLARATION:
+
+. Structure is a value type that will be stored locally on the stack, to allocate it on the heap use build-in functions.
+. Structure members - fields, functions and nested structures.
+. Unlike in most procedure languages, members are initialized with access modifiers. 
+. -struct name {}
+
+. FIELDS:
+. [modifier] [type] [name] 
+. 

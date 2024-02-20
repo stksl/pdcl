@@ -10,7 +10,7 @@ public sealed class LexingTests
     public void LexingTest_MAIN() 
     {
         using SourceStream stream = new SourceStream(GetRelativePath() + "Lexing/general.pdcl");
-        Lexer lexer = new Lexer(stream, new PreprocContext(null), new Core.Diagnostics.DiagnosticHandler());
+        Lexer lexer = new Lexer(stream, new PreprocContext(null));
 
         SyntaxKind[] kinds = 
         {

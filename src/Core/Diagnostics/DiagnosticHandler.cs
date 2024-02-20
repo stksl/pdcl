@@ -20,7 +20,7 @@ internal sealed class DiagnosticHandler : IDiagnosticHandler
         diagnostics = new DiagnosticsBag();
     }
 
-    public void ReportBadTokenError(int line, SyntaxToken token) 
+    public void ReportBadToken(int line, SyntaxToken token) 
     {
         reportError(
             new Error(ErrorIdentifier.BadTokenError, $"\'{token.Metadata.Raw}\' was bad token", line));

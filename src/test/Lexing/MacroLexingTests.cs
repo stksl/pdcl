@@ -15,7 +15,7 @@ public sealed class MacroLexingTests
         PreprocContext context = new PreprocContext(null);
         Preprocessor preproc = new Preprocessor(stream, context);
 
-        while (!preproc.NextDirective().IsFailed);
+        while (! preproc.NextDirectiveAsync().Result.IsFailed);
 
         stream.Dispose();
         stream = new SourceStream(GetRelativePath() + "Lexing/argedMacro.pdcl");
@@ -43,7 +43,7 @@ public sealed class MacroLexingTests
             SyntaxKind.TriviaToken,
             SyntaxKind.NumberToken,
         }; 
-        Lexer lexer = new Lexer(stream, context, new Core.Diagnostics.DiagnosticHandler());
+        Lexer lexer = new Lexer(stream, context);
         IAnalyzerResult<SyntaxToken?, Lexer.LexerStatusCode> res = lexer.Lex();
         for(int i = 0; i < kinds.Length; i++) 
         {
@@ -51,7 +51,7 @@ public sealed class MacroLexingTests
             if (res.Value.Value.Kind == SyntaxKind.MacroSubstitutedToken) 
             {
                 SourceStream stream1 = new SourceStream(res.Value.Value.Metadata.Raw.ToCharArray());
-                Lexer macroLexer =new Lexer(stream1, context, new Core.Diagnostics.DiagnosticHandler());
+                Lexer macroLexer =new Lexer(stream1, context);
                 var res2 = macroLexer.Lex();
                 for(int j = 0; j < macroKinds.Length; j++) 
                 {
@@ -70,7 +70,7 @@ public sealed class MacroLexingTests
 
         PreprocContext ctx = new PreprocContext(null);
         Preprocessor preproc = new Preprocessor(stream, ctx);
-        while (!preproc.NextDirective().IsFailed);
+        while (!preproc.NextDirectiveAsync().Result.IsFailed);
 
         SyntaxKind[] kinds = 
         {
@@ -86,7 +86,7 @@ public sealed class MacroLexingTests
         };
         stream.Dispose();
         stream = new SourceStream(GetRelativePath() + "Lexing/macro.pdcl");
-        Lexer lexer = new Lexer(stream, ctx, new Core.Diagnostics.DiagnosticHandler());
+        Lexer lexer = new Lexer(stream, ctx);
 
         IAnalyzerResult<SyntaxToken?, Lexer.LexerStatusCode> res = lexer.Lex();
         string substitution = "";
@@ -97,7 +97,7 @@ public sealed class MacroLexingTests
                 substitution = res.Value.Value.Metadata.Raw;
             res = lexer.Lex();
         }
-        lexer = new Lexer(new SourceStream(substitution.ToCharArray()), ctx, new Core.Diagnostics.DiagnosticHandler());
+        lexer = new Lexer(new SourceStream(substitution.ToCharArray()), ctx);
 
         Assert.Equal("struct", lexer.Lex().Value!.Value.Metadata.Raw);
 
