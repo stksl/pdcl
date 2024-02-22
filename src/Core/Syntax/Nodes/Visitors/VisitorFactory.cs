@@ -9,6 +9,8 @@ internal static class VisitorFactory
         {
             case SyntaxTree.ApplicationContextNode:
                 return (IVisitor<TNode>)(IVisitor<SyntaxTree.ApplicationContextNode>)ApplicationContextVisitor.Instance;
+            case UseNode:
+                return (IVisitor<TNode>)(IVisitor<UseNode>)UseVisitor.Instance;
             default:
                 return null;
         }

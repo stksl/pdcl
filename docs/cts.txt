@@ -18,3 +18,9 @@ double - double
 char - char
 string - string
 ```
+
+
+To use external assemblies, make sure to reference them in ".config.json", you can either use a full or a relative path
+```
+    "ReferenceAssemblies": ["../asm1.dll", "full/path/asm2.dll"]
+```

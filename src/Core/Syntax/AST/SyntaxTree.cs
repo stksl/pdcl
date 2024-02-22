@@ -7,14 +7,11 @@ namespace Pdcl.Core.Syntax;
 /// </summary>
 internal sealed class SyntaxTree
 {
-    private readonly Parser.SymbolTable table;
     public readonly SyntaxNode Root;
 
-    public SyntaxTree(Parser.SymbolTable globaltable)
+    public SyntaxTree()
     {
         Root = new ApplicationContextNode();
-
-        table = globaltable;
     }
     /// <summary>
     /// Adds a global node as a Root element's child.
@@ -22,17 +19,27 @@ internal sealed class SyntaxTree
     /// <param name="node"></param>
     /// <param name="type"></param>
     /// <returns></returns>
-    public bool AddGlobalSymbol(Parser.Symbol symbol) 
+    public void AddGlobalSymbol(Parser.Symbol symbol) 
     {
-        bool res = table.StoreSymbol(symbol);
-        if (res) 
-            ((ApplicationContextNode)Root).addChild(symbol.Node);
-        return res;
+        ((ApplicationContextNode)Root).addChild(symbol.Node);
+    }
+    public SyntaxNode? GetParent(SyntaxNode node, SyntaxNode parent = null!) 
+    {
+        if (parent == null) parent = Root;
+
+        foreach(SyntaxNode child in parent.GetChildren()) 
+        {
+            if (child == node || (parent = GetParent(node, child)!) != null) 
+            {
+                return parent; 
+            } 
+        }
+        return null;
     }
     internal sealed class ApplicationContextNode : SyntaxNode
     {
         private List<SyntaxNode> globalNodes; // those could be any of: global var, type declaration, func declaration
-        public ApplicationContextNode()
+        public ApplicationContextNode() : base(0)
         {
             globalNodes = new List<SyntaxNode>();
         }

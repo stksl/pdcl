@@ -65,4 +65,5 @@ public enum SyntaxKind : int
     ReturnToken, // return
     NamespaceToken, // namespace
     IL_InlineToken, // il_inline
+    ConstToken, // const
 }

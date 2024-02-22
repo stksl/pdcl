@@ -13,41 +13,38 @@ internal sealed partial class Parser
         public readonly SymbolType Type;
         public readonly int Scope;
         public readonly SyntaxNode Node;
-
-        public readonly SymbolTable? Children;
-        public Symbol(string name, SymbolType type, int scope, SyntaxNode node, SymbolTable? children)
+        public Symbol(string name, SymbolType type, int scope, SyntaxNode node)
         {
             Name = name;
             Type = type;
             Scope = scope;
             Node = node;
 
-            Children = children;
         }
         /// <summary>
         /// Only for equality purposes
         /// </summary>
         /// <param name="name"></param>
-        public Symbol(string name) : this(name, SymbolType.Undefined, -1, null!, null) 
+        public Symbol(string name, SymbolType type) : this(name, type, -1, null!) 
         {
         }
         public bool Equals(Symbol other) 
         {
-            return Name == other.Name;
+            return GetHashCode() == other.GetHashCode();
         }
         public override bool Equals([NotNullWhen(true)] object? obj) => 
             obj is Symbol other && Equals(other: other);
         public override int GetHashCode()
         {
-            return Name.GetHashCode();
+            return HashCode.Combine<string, SymbolType>(Name, Type);
         }
         public static bool operator ==(Symbol left, Symbol right) 
         {
-            return left.Name == right.Name;
+            return left.Equals(right);
         } 
         public static bool operator !=(Symbol left, Symbol right) 
         {
-            return left.Name != right.Name;
+            return !left.Equals(right);
         }
     }
     public enum SymbolType : int 

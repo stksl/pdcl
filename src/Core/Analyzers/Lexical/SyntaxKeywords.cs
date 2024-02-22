@@ -18,5 +18,6 @@ internal sealed partial class Lexer
             new KeyValuePair<string, SyntaxKind>("struct", SyntaxKind.StructToken),
             new KeyValuePair<string, SyntaxKind>("return", SyntaxKind.ReturnToken),
             new KeyValuePair<string, SyntaxKind>("il_inline", SyntaxKind.IL_InlineToken),
+            new KeyValuePair<string, SyntaxKind>("const", SyntaxKind.ConstToken),
        });
 }

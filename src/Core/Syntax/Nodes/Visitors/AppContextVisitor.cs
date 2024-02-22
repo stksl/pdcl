@@ -7,10 +7,32 @@ internal sealed class ApplicationContextVisitor : IVisitor<SyntaxTree.Applicatio
     private static ApplicationContextVisitor? _instance;
     public static ApplicationContextVisitor Instance => _instance ??= new ApplicationContextVisitor();
     private ApplicationContextVisitor() {}
-    public Task<SyntaxTree.ApplicationContextNode> VisitAsync(Parser parser) 
+    public async Task<SyntaxTree.ApplicationContextNode?> VisitAsync(Parser parser) 
     {
-        var ctx = parser._tree!.Root as SyntaxTree.ApplicationContextNode;
+        // getting the root as an app context, directly changing it
+        var root = (parser._tree!.Root as SyntaxTree.ApplicationContextNode)!;
+
+        // checks for all possible top-level nodes, visiting them 
         
-        throw new NotImplementedException();
+        while (parser.CurrentToken.Kind == SyntaxKind.UseToken) 
+        {
+            UseNode? use = await VisitorFactory.GetVisitorFor<UseNode>()!.VisitAsync(parser);
+            if (use != null) root.addChild(use);
+        }
+
+        switch(parser.CurrentToken.Kind) 
+        {
+            // global constant variable declaration
+            case SyntaxKind.ConstToken:
+                
+                break;
+            // supposably a function declaration
+            case SyntaxKind.TextToken:
+                break;
+            case SyntaxKind.StructToken:
+                break;
+        }
+
+        return root;
     }
 }

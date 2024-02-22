@@ -40,4 +40,8 @@ public enum ErrorIdentifier : int
     ArgumentsNotInRange,
     BadTokenError,
 
+    UnsuitableSyntaxToken,
+    IncorrectNamespaceSyntax,
+    SemicolonExpected,
+    UnknownType,
 }

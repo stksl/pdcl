@@ -13,13 +13,16 @@ public readonly struct SyntaxToken
 }
 public readonly struct LexemeMetadata 
 {
+    public readonly ulong AdditionalMetadata;
     public readonly TextPosition Position;
     public readonly int Line;
     public readonly string Raw;
-    public LexemeMetadata(TextPosition pos, int line, string raw)
+    public LexemeMetadata(TextPosition pos, int line, string raw, ulong metadata = 0)
     {
         Position = pos;
         Line = line;
         Raw = raw;
+
+        AdditionalMetadata = metadata;
     }
 }

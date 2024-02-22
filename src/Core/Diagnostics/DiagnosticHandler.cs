@@ -35,7 +35,24 @@ internal sealed class DiagnosticHandler : IDiagnosticHandler
         reportError(
             new Error(ErrorIdentifier.ArgumentsNotInRange, $"{argsExpected} arguments expected", line));
     }
-
+    public void ReportUnsuitableSyntaxToken(int line, SyntaxToken actual, SyntaxKind expected) 
+    {
+        reportError(new Error(
+            ErrorIdentifier.UnsuitableSyntaxToken, $"Expected {expected}, instead got {actual.Metadata.Raw}({actual.Kind})", line
+        ));
+    }
+    public void ReportIncorrectNamespaceSyntax(int line, string namespaceName) 
+    {
+        reportError(new Error(ErrorIdentifier.IncorrectNamespaceSyntax, $"Incorrect namespace identifier syntax: {namespaceName}", line));
+    }
+    public void ReportSemicolonExpected(int line) 
+    {
+        reportError(new Error(ErrorIdentifier.SemicolonExpected, "Semicolon expected", line));
+    }
+    public void ReportUnknownType(int line, string typeName) 
+    {
+        reportError(new Error(ErrorIdentifier.UnknownType, $"Unknown type: {typeName}", line));
+    }
     private void reportError(Error err) 
     {
         diagnostics.ReportError(err);

@@ -26,9 +26,12 @@ internal sealed partial class Lexer
 
         triviasMap = new Dictionary<int, ISyntaxTrivia>();
     }
-    private IAnalyzerResult<SyntaxToken?, LexerStatusCode> success(SyntaxKind kind, int startPos, string? raw) =>
-        new AnalyzerResult<SyntaxToken?, LexerStatusCode>(new SyntaxToken(kind, new LexemeMetadata(
-                new TextPosition(startPos, stream.Position - startPos), currLine, raw!)), LexerStatusCode.Success);
+    private IAnalyzerResult<SyntaxToken?, LexerStatusCode> success(SyntaxKind kind, int startPos, string? raw, ulong metadata = 0)
+        => new AnalyzerResult<SyntaxToken?, LexerStatusCode>(
+            new SyntaxToken(
+                kind, 
+                new LexemeMetadata(new TextPosition(startPos, stream.Position - startPos), currLine, raw!, metadata)), 
+            LexerStatusCode.Success);
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> EOF() =>
         new AnalyzerResult<SyntaxToken?, LexerStatusCode>(null, LexerStatusCode.EOF);
     public IAnalyzerResult<SyntaxToken?, LexerStatusCode> Lex()
@@ -259,6 +262,12 @@ internal sealed partial class Lexer
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> lexNumber(bool isNegative)
     {
         StringBuilder sb = new StringBuilder();
+        /*
+            0 => integer
+            1 => floating point 
+        */
+        ulong numberMetadata = 0;
+
         if (isNegative) sb.Append('-');
 
         if (stream.Advance() == '0' && stream.Peek() == 'x')
@@ -280,10 +289,18 @@ internal sealed partial class Lexer
             while (char.IsDigit(stream.Peek()))
             {
                 sb.Append(stream.Advance());
+
+                if (stream.Peek() == '.') 
+                {
+                    if (numberMetadata == 1) 
+                        return new AnalyzerResult<SyntaxToken?, LexerStatusCode>(null, LexerStatusCode.OutOfLiteralRange);
+                    
+                    numberMetadata = 1;
+                }
             }
         }
         string raw = sb.ToString();
-        return success(SyntaxKind.NumberToken, stream.Position - raw.Length, raw);
+        return success(SyntaxKind.NumberToken, stream.Position - raw.Length, raw, numberMetadata);
     }
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> lexStringLiteral()
     {
