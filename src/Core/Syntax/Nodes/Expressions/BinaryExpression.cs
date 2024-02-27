@@ -1,11 +1,11 @@
 namespace Pdcl.Core.Syntax;
 
-public sealed class BinaryExpression : ExpressionNode 
+public class BinaryExpression : ExpressionNode 
 {
     public readonly BinaryOperator Operator;
-    public readonly VariableValue Left;
-    public readonly VariableValue Right;
-    public BinaryExpression(BinaryOperator op, VariableValue left, VariableValue right, int tokenInd) : base(tokenInd)
+    public readonly ValueNode Left;
+    public readonly ValueNode Right;
+    public BinaryExpression(BinaryOperator op, ValueNode left, ValueNode right, int tokenInd) : base(tokenInd)
     {
         Operator = op;
         Left = left;
@@ -17,5 +17,10 @@ public sealed class BinaryExpression : ExpressionNode
         yield return Operator;
         yield return Left;
         yield return Right;
+    }
+
+    public override SyntaxKind GetKind()
+    {
+        throw new NotImplementedException();
     }
 }

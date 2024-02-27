@@ -19,7 +19,7 @@ internal sealed class SyntaxTree
     /// <param name="node"></param>
     /// <param name="type"></param>
     /// <returns></returns>
-    public void AddGlobalSymbol(Parser.Symbol symbol) 
+    public void AddGlobalSymbol(Symbol symbol) 
     {
         ((ApplicationContextNode)Root).addChild(symbol.Node);
     }

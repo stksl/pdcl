@@ -3,9 +3,9 @@ namespace Pdcl.Core.Syntax;
 public sealed class BinaryOperator : OperatorNode
 {
     public readonly BinaryOperators OperatorType;
-    public BinaryOperator(int tokenInd) : base(tokenInd)
+    public BinaryOperator(BinaryOperators op, int tokenInd) : base(tokenInd)
     {
-
+        OperatorType = op;
     }
     public override IEnumerable<SyntaxNode> GetChildren()
     {

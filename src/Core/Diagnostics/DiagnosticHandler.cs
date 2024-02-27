@@ -49,9 +49,13 @@ internal sealed class DiagnosticHandler : IDiagnosticHandler
     {
         reportError(new Error(ErrorIdentifier.SemicolonExpected, "Semicolon expected", line));
     }
-    public void ReportUnknownType(int line, string typeName) 
+    public void ReportUnknownSymbol(int line, string symbolName) 
     {
-        reportError(new Error(ErrorIdentifier.UnknownType, $"Unknown type: {typeName}", line));
+        reportError(new Error(ErrorIdentifier.UnknownSymbol, $"Unknown symbol: {symbolName}", line));
+    }
+    public void ReportAlreadyDefiend(int line, string name) 
+    {
+        reportError(new Error(ErrorIdentifier.AlreadyDefined, $"{name} has already been defined", line));
     }
     private void reportError(Error err) 
     {

@@ -1,26 +1,28 @@
 namespace Pdcl.Core.Syntax;
 
-internal sealed class VariableTypeVisitor : IVisitor<VariableType> 
+internal sealed class VariableTypeVisitor : IVisitor<TypeNode> 
 {
-    public Task<VariableType?> VisitAsync(Parser parser) 
+    public static VariableTypeVisitor Instance => _instance;
+    private static VariableTypeVisitor _instance = new VariableTypeVisitor();
+    public Task<TypeNode?> VisitAsync(Parser parser) 
     {
         if (parser.CurrentToken.Kind != SyntaxKind.TextToken) 
         {
             parser.diagnostics.ReportUnsuitableSyntaxToken(
                 parser.CurrentToken.Metadata.Line, parser.CurrentToken, SyntaxKind.TextToken);
-            return Task.FromResult<VariableType?>(null);
+            return Task.FromResult<TypeNode?>(null);
         }
 
         string typeName = parser.CurrentToken.Metadata.Raw;
 
-        Parser.Symbol? symbol = parser.GlobalTable.GetSymbol(typeName, Parser.SymbolType.TypeDefinition);
+        Symbol? symbol = parser.GlobalTable.GetSymbol(typeName, SymbolType.TypeDefinition);
         if (!symbol.HasValue) 
         {
-            parser.diagnostics.ReportUnknownType(parser.CurrentToken.Metadata.Line, typeName);
-            return Task.FromResult<VariableType?>(null);
+            parser.diagnostics.ReportUnknownSymbol(parser.CurrentToken.Metadata.Line, typeName);
+            return Task.FromResult<TypeNode?>(null);
         }
-
-        return Task.FromResult<VariableType?>(
-            new VariableType(typeName, (TypeDeclarationNode)symbol.Value.Node, parser.tokensInd));
+        parser.tokensInd++;
+        return Task.FromResult<TypeNode?>(
+            new TypeNode(typeName, (TypeDeclarationNode)symbol.Value.Node, parser.tokensInd));
     }
 }

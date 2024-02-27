@@ -4,8 +4,8 @@ namespace Pdcl.Core.Syntax;
 
 internal sealed class ApplicationContextVisitor : IVisitor<SyntaxTree.ApplicationContextNode> 
 {
-    private static ApplicationContextVisitor? _instance;
-    public static ApplicationContextVisitor Instance => _instance ??= new ApplicationContextVisitor();
+    private static ApplicationContextVisitor _instance = new ApplicationContextVisitor();
+    public static ApplicationContextVisitor Instance => _instance;
     private ApplicationContextVisitor() {}
     public async Task<SyntaxTree.ApplicationContextNode?> VisitAsync(Parser parser) 
     {

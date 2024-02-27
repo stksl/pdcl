@@ -118,5 +118,5 @@ STRUCTURE DECLARATION:
 . -struct name {}
 
 . FIELDS:
-. [modifier] [type] [name] 
+. [modifier] [type] [name] [accessors]
 . 

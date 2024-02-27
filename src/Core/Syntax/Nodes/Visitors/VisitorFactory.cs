@@ -11,6 +11,8 @@ internal static class VisitorFactory
                 return (IVisitor<TNode>)(IVisitor<SyntaxTree.ApplicationContextNode>)ApplicationContextVisitor.Instance;
             case UseNode:
                 return (IVisitor<TNode>)(IVisitor<UseNode>)UseVisitor.Instance;
+            case ConstVarNode:
+                return (IVisitor<TNode>)(IVisitor<ConstVarNode>)ConstVarVisitor.Instance; 
             default:
                 return null;
         }

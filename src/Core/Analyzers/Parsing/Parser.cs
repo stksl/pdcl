@@ -15,8 +15,8 @@ internal sealed partial class Parser : IDisposable
     internal readonly DiagnosticHandler diagnostics;
     internal readonly CompilationContext context;
     public readonly SymbolTable GlobalTable;
-
-    internal SyntaxTree? _tree {get; private set;}
+    public volatile string currPath = ""; 
+    internal SyntaxTree? _tree { get; private set; }
     public Parser(ImmutableList<SyntaxToken> _tokens, DiagnosticHandler _handler)
     {
         tokens = _tokens;
@@ -27,16 +27,20 @@ internal sealed partial class Parser : IDisposable
         _tree = new SyntaxTree();
         context = new CompilationContext();
     }
-    private void onDiagnostic(IDiagnostic diagnostic) 
+    private void onDiagnostic(IDiagnostic diagnostic)
     {
         if (diagnostic is not Error error) return;
 
         ErrorRecoverer.Recover(error, context);
     }
-    public void Dispose() 
+    public void Dispose()
     {
         diagnostics.OnDiagnosticReported -= onDiagnostic;
     }
-    public Task ParseAsync() 
+    public Task ParseAsync()
         => VisitorFactory.GetVisitorFor<SyntaxTree.ApplicationContextNode>()!.VisitAsync(this);
+    public SymbolTable GetCurrentTable()
+    {
+        throw new NotImplementedException();
+    }
 }

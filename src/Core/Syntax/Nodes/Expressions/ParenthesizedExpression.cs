@@ -2,8 +2,8 @@ namespace Pdcl.Core.Syntax;
 
 public sealed class ParenthesizedExpression : ExpressionNode 
 {
-    public readonly VariableValue Value;
-    public ParenthesizedExpression(VariableValue value, int tokenInd) : base(tokenInd)
+    public readonly ValueNode Value;
+    public ParenthesizedExpression(ValueNode value, int tokenInd) : base(tokenInd)
     {
         Value = value;
     }
@@ -11,5 +11,10 @@ public sealed class ParenthesizedExpression : ExpressionNode
     public override IEnumerable<SyntaxNode> GetChildren()
     {
         yield return Value;
+    }
+
+    public override SyntaxKind GetKind()
+    {
+        return SyntaxKind.OpenParentheseToken;
     }
 }

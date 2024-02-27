@@ -4,8 +4,8 @@ namespace Pdcl.Core.Syntax;
 
 internal sealed class UseVisitor : IVisitor<UseNode>
 {
-    public static UseVisitor Instance = instance ??= new UseVisitor();
-    private static UseVisitor? instance;
+    public static UseVisitor Instance => _instance;
+    private static UseVisitor _instance = new UseVisitor();
     private UseVisitor() { }
     public Task<UseNode?> VisitAsync(Parser parser)
     {

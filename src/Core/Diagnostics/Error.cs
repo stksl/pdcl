@@ -20,7 +20,7 @@ public struct Error : IDiagnostic
     }
     public override string ToString()
     {
-        return $"ERROR({identifier}) at line {line}: {description}";
+        return $"ERROR({identifier}) at line {line}: \n\t{description}";
     }
     public override int GetHashCode() 
     {
@@ -43,5 +43,6 @@ public enum ErrorIdentifier : int
     UnsuitableSyntaxToken,
     IncorrectNamespaceSyntax,
     SemicolonExpected,
-    UnknownType,
+    UnknownSymbol,
+    AlreadyDefined,
 }
