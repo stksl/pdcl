@@ -21,6 +21,7 @@ public enum SyntaxKind : int
     SemicolonToken, // ;
     LessThenToken, // <
     GreaterThenToken, // >
+    CaretToken, // ^
     HashToken, // #
     CharLiteral, // '
     StringLiteral, // "

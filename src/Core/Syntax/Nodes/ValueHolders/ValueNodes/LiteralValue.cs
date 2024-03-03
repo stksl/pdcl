@@ -14,10 +14,6 @@ public sealed class LiteralValue : ValueNode
     {
         return Array.Empty<SyntaxNode>();
     }
-    public override SyntaxKind GetKind()
-    {
-        return LiteralToken.Kind;
-    }
     public enum LiteralType
     {
         Number,

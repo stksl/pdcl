@@ -18,7 +18,7 @@ public struct Warning : IDiagnostic
 
     public override string ToString()
     {
-        return $"WARNING({Identifier}) at line {line}: {description}";
+        return $"WARNING({Identifier}) at line {line}: \n\t{description}";
     }
     public override int GetHashCode()
     {

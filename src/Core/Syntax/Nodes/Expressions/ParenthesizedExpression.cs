@@ -12,9 +12,4 @@ public sealed class ParenthesizedExpression : ExpressionNode
     {
         yield return Value;
     }
-
-    public override SyntaxKind GetKind()
-    {
-        return SyntaxKind.OpenParentheseToken;
-    }
 }

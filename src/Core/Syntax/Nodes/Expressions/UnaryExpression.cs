@@ -3,8 +3,8 @@ namespace Pdcl.Core.Syntax;
 public sealed class UnaryExpression : ExpressionNode 
 {
     public readonly UnaryOperator Operator;
-    public readonly VariableValue Operand;
-    public UnaryExpression(UnaryOperator op, VariableValue operand, int tokenInd) : base(tokenInd)
+    public readonly ValueNode Operand;
+    public UnaryExpression(UnaryOperator op, ValueNode operand, int tokenInd) : base(tokenInd)
     {
         Operator = op;
         Operand = operand;

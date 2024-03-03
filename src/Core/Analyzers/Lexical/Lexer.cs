@@ -105,6 +105,8 @@ internal sealed partial class Lexer
                 else return success(SyntaxKind.SlashToken, stream.Position++, "/");
             case '%':
                 return success(SyntaxKind.PercentToken, stream.Position++, "%");
+            case '^':
+                return success(SyntaxKind.CaretToken, stream.Position++, "^");
             case ',':
                 return success(SyntaxKind.CommaToken, stream.Position++, ",");
             case '.':
@@ -199,7 +201,6 @@ internal sealed partial class Lexer
                 stream.Position++;
                 return lexStringLiteral();
             case '\'':
-                stream.Position++;
                 return lexCharLiteral();
             case >= '0' and <= '9':
                 return lexNumber(isNegative: false);
@@ -264,7 +265,9 @@ internal sealed partial class Lexer
         StringBuilder sb = new StringBuilder();
         /*
             0 => integer
-            1 => floating point 
+            1 => floating point
+            2 => hex number
+            
         */
         ulong numberMetadata = 0;
 
@@ -274,6 +277,7 @@ internal sealed partial class Lexer
         {
             // a hex number
             stream.Position++;
+            numberMetadata = 2;
             while (char.IsAsciiHexDigit(stream.Peek()))
             {
                 if (sb.Length > 16)
@@ -281,7 +285,6 @@ internal sealed partial class Lexer
                 sb.Append(stream.Advance());
             }
 
-            sb = new StringBuilder(Convert.ToString(Convert.ToUInt64(sb.ToString(), fromBase: 16)));
         }
         else
         {
@@ -340,7 +343,7 @@ internal sealed partial class Lexer
             escaped = 1;
         }
         else val = stream.Peek();
-        stream.Position++;
+        stream.Position+=2;
         return success(SyntaxKind.CharLiteral, stream.Position - 3 - escaped, val.ToString());
 
     }

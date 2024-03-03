@@ -2,12 +2,17 @@ using System.Collections.Immutable;
 
 namespace Pdcl.Core.Syntax;
 
-public sealed class FunctionDeclaration : SyntaxNode 
+public sealed class FunctionDeclaration : ValueHolderNode, ISymboled
 {
     public readonly FunctionSignature Signature;
     public readonly FunctionBody Body;
-    public FunctionDeclaration(FunctionSignature sig, FunctionBody body, int tokenInd) : base(tokenInd)
+
+    public string TableTreePath {get; private set;}
+    public FunctionDeclaration(FunctionSignature sig, FunctionBody body, string tableTreePath, int tokenInd) 
+        : base(sig.Name, sig.ReturnType, hasGetter: true, hasSetter: false, tokenInd)
     {
+        TableTreePath = tableTreePath;
+
         Signature = sig;
         Body = body;
     }
@@ -24,7 +29,7 @@ public sealed class FunctionSignature : SyntaxNode
     public readonly TypeNode ReturnType;
     public readonly ImmutableDictionary<string, TypeNode> Arguments;
     public FunctionSignature(string name, TypeNode retType, ImmutableDictionary<string, TypeNode> args, int tokenInd) 
-    : base(tokenInd)
+        : base(tokenInd)
     {
         Name = name;
         ReturnType = retType;

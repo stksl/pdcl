@@ -16,8 +16,4 @@ public sealed class RefValueNode : ValueNode
     {
         return Array.Empty<SyntaxNode>();
     }
-    public override SyntaxKind GetKind()
-    {
-        return SyntaxKind.TextToken;
-    }
 }

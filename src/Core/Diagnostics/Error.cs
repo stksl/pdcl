@@ -45,4 +45,7 @@ public enum ErrorIdentifier : int
     SemicolonExpected,
     UnknownSymbol,
     AlreadyDefined,
+    UnkownOperandSyntax,
+    NoArgSeparator,
+    UnknownOperationSyntax,
 }

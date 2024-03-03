@@ -3,7 +3,7 @@ namespace Pdcl.Core.Syntax;
 
 internal static class ErrorRecoverer
 {
-    public static void Recover(Error error, CompilationContext ctx) 
+    public static async Task RecoverAsync(Error error, CompilationContext ctx) 
     {
         throw new NotImplementedException();
     } 

@@ -20,46 +20,58 @@ internal sealed class DiagnosticHandler : IDiagnosticHandler
         diagnostics = new DiagnosticsBag();
     }
 
-    public void ReportBadToken(int line, SyntaxToken token) 
+    public Task ReportBadToken(int line, SyntaxToken token) 
     {
-        reportError(
+        return reportErrorAsync(
             new Error(ErrorIdentifier.BadTokenError, $"\'{token.Metadata.Raw}\' was bad token", line));
     }
-    public void ReportUnknownDirectiveDeclaration(int line) 
+    public Task ReportUnknownDirectiveDeclaration(int line) 
     {
-        reportError(
+        return reportErrorAsync(
             new Error(ErrorIdentifier.UnknownDirectiveDeclaration, $"\'Unknown directive declaration", line));
     }
-    public void ReportArgumentsNotInRange(int line, int argsExpected) 
+    public Task ReportArgumentsNotInRange(int line, int argsExpected) 
     {
-        reportError(
+        return reportErrorAsync(
             new Error(ErrorIdentifier.ArgumentsNotInRange, $"{argsExpected} arguments expected", line));
     }
-    public void ReportUnsuitableSyntaxToken(int line, SyntaxToken actual, SyntaxKind expected) 
+    public Task ReportUnsuitableSyntaxToken(int line, SyntaxToken actual, SyntaxKind expected) 
     {
-        reportError(new Error(
+        return reportErrorAsync(new Error(
             ErrorIdentifier.UnsuitableSyntaxToken, $"Expected {expected}, instead got {actual.Metadata.Raw}({actual.Kind})", line
         ));
     }
-    public void ReportIncorrectNamespaceSyntax(int line, string namespaceName) 
+    public Task ReportIncorrectNamespaceSyntax(int line, string namespaceName) 
     {
-        reportError(new Error(ErrorIdentifier.IncorrectNamespaceSyntax, $"Incorrect namespace identifier syntax: {namespaceName}", line));
+        return reportErrorAsync(new Error(ErrorIdentifier.IncorrectNamespaceSyntax, $"Incorrect namespace identifier syntax: {namespaceName}", line));
     }
-    public void ReportSemicolonExpected(int line) 
+    public Task ReportSemicolonExpected(int line) 
     {
-        reportError(new Error(ErrorIdentifier.SemicolonExpected, "Semicolon expected", line));
+        return reportErrorAsync(new Error(ErrorIdentifier.SemicolonExpected, "Semicolon expected", line));
     }
-    public void ReportUnknownSymbol(int line, string symbolName) 
+    public Task ReportUnknownSymbol(int line, string symbolName) 
     {
-        reportError(new Error(ErrorIdentifier.UnknownSymbol, $"Unknown symbol: {symbolName}", line));
+        return reportErrorAsync(new Error(ErrorIdentifier.UnknownSymbol, $"Unknown symbol: {symbolName}", line));
     }
-    public void ReportAlreadyDefiend(int line, string name) 
+    public Task ReportAlreadyDefined(int line, string name) 
     {
-        reportError(new Error(ErrorIdentifier.AlreadyDefined, $"{name} has already been defined", line));
+        return reportErrorAsync(new Error(ErrorIdentifier.AlreadyDefined, $"{name} has already been defined", line));
     }
-    private void reportError(Error err) 
+    public Task ReportUnkownOperandSyntax(int line, string operand) 
+    {
+        return reportErrorAsync(new Error(ErrorIdentifier.UnkownOperandSyntax, $"Unknown operand syntax: {operand}", line));
+    }
+    public Task ReportUnkownOperationSyntax(int line, string operation) 
+    {
+        return reportErrorAsync(new Error(ErrorIdentifier.UnknownOperationSyntax, $"Unknown operation syntax: {operation}", line));
+    }
+    public Task ReportNoArgSeparator(int line) 
+    {
+        return reportErrorAsync(new Error(ErrorIdentifier.NoArgSeparator, $"No argument separator", line));
+    }
+    private async Task reportErrorAsync(Error err) 
     {
         diagnostics.ReportError(err);
-        OnDiagnosticReported?.Invoke(err);
+        await OnDiagnosticReported!.Invoke(err);
     }
 }

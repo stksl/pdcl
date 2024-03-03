@@ -1,11 +1,9 @@
 
-using System.Reflection.Metadata.Ecma335;
-
 namespace Pdcl.Core.Syntax;
 
 public sealed class ConstVarNode : ValueHolderNode
 {
-    public readonly LiteralValue ConstValue;
+    public LiteralValue ConstValue {get; internal set;}
     public ConstVarNode(string name, TypeNode type, LiteralValue constVal, int tokenInd) 
         : base(name, type, hasGetter: true, hasSetter: false, tokenInd)
     {

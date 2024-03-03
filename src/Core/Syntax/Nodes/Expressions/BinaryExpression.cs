@@ -18,9 +18,4 @@ public class BinaryExpression : ExpressionNode
         yield return Left;
         yield return Right;
     }
-
-    public override SyntaxKind GetKind()
-    {
-        throw new NotImplementedException();
-    }
 }

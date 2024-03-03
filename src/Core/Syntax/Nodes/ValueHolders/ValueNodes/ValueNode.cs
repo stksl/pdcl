@@ -10,5 +10,4 @@ public abstract class ValueNode : SyntaxNode
     {
 
     }
-    public abstract SyntaxKind GetKind();
 }
