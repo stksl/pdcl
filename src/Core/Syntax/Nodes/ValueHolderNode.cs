@@ -10,7 +10,7 @@ public abstract class ValueHolderNode : SyntaxNode
     public readonly bool HasSetter;
     public readonly string Name;
     public readonly TypeNode Type;
-    public ValueHolderNode(string name, TypeNode type, bool hasGetter, bool hasSetter, int tokenInd) : base(tokenInd)
+    public ValueHolderNode(string name, TypeNode type, bool hasGetter, bool hasSetter)
     {
         Name = name;
         Type = type;

@@ -3,8 +3,8 @@ namespace Pdcl.Core.Syntax;
 
 public sealed class VarDeclaration : ValueHolderNode
 {
-    public VarDeclaration(string name, TypeNode type, int tokenInd)
-        : base(name, type, hasGetter: true, hasSetter: true, tokenInd)
+    public VarDeclaration(string name, TypeNode type)
+        : base(name, type, hasGetter: true, hasSetter: true)
     {
     }
 

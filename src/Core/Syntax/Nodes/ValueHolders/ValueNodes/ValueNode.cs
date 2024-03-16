@@ -1,4 +1,6 @@
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace Pdcl.Core.Syntax;
 
 /// <summary>
@@ -6,8 +8,9 @@ namespace Pdcl.Core.Syntax;
 /// </summary>
 public abstract class ValueNode : SyntaxNode
 {
-    protected ValueNode(int tokenInd) : base(tokenInd) 
+    public readonly TypeNode Type;
+    public ValueNode(TypeNode type) 
     {
-
+        Type = type;
     }
 }

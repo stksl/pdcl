@@ -1,10 +1,11 @@
 namespace Pdcl.Core.Syntax;
 
-public sealed class UnaryExpression : ExpressionNode 
+public class UnaryExpression : ExpressionNode 
 {
     public readonly UnaryOperator Operator;
     public readonly ValueNode Operand;
-    public UnaryExpression(UnaryOperator op, ValueNode operand, int tokenInd) : base(tokenInd)
+    public UnaryExpression(UnaryOperator op, ValueNode operand, TypeNode resultType) 
+        : base(resultType)
     {
         Operator = op;
         Operand = operand;

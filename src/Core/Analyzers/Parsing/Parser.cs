@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Pdcl.Core.Diagnostics;
 using Pdcl.Core.Syntax;
 using System.Collections;
+using Pdcl.Core.Assembly;
 namespace Pdcl.Core;
 
 /// <summary>
@@ -9,40 +10,41 @@ namespace Pdcl.Core;
 /// </summary>
 internal sealed partial class Parser : IDisposable
 {
-    internal readonly TokenCollection tokens;
-    internal readonly DiagnosticHandler diagnostics;
-    internal readonly CompilationContext context;
-    public readonly SymbolTableTree TableTree;
-
+    public readonly TokenCollection tokens;
+    public readonly DiagnosticHandler diagnostics;
+    public readonly CompilationContext context;
+    public readonly AssemblyInfo AssemblyInfo; 
     public volatile string currPath = "/"; 
-    internal SyntaxTree? _tree { get; private set; }
-    public Parser(ImmutableList<SyntaxToken> _tokens, DiagnosticHandler _handler)
+
+    public readonly SyntaxTree tree;
+    public Parser(ImmutableList<SyntaxToken> _tokens, DiagnosticHandler _handler, AssemblyInfo assembly)
     {
         tokens = new TokenCollection(_tokens);
 
         diagnostics = _handler;
         diagnostics.OnDiagnosticReported += onDiagnosticAsync;
 
-        _tree = new SyntaxTree();
         context = new CompilationContext();
 
-        TableTree = new SymbolTableTree();
+        AssemblyInfo = assembly;
+
+        tree = new SyntaxTree();
     }
+
     private async Task onDiagnosticAsync(IDiagnostic diagnostic)
     {
-        if (diagnostic is not Error error) return;
-        
-        await ErrorRecoverer.RecoverAsync(error, context);
+        if (diagnostic is Error error)
+            await ErrorRecoverer.RecoverAsync(error, context);
     }
     public void Dispose()
     {
         diagnostics.OnDiagnosticReported -= onDiagnosticAsync;
     }
     public Task ParseAsync()
-        => VisitorFactory.GetVisitorFor<SyntaxTree.ApplicationContextNode>()!.VisitAsync(this);
+        => VisitorFactory.GetVisitorFor<SyntaxTree.ApplicationContextNode>(context)!.VisitAsync(this);
     public SymbolTreeNode GetCurrentTableNode()
     {
-        return TableTree.GetNode(currPath)!;
+        return AssemblyInfo.TableTree.GetNode(currPath)!;
     }
 }
 
@@ -52,6 +54,7 @@ public sealed class TokenCollection : IEnumerable<SyntaxToken>
     public int Index => index;
     private volatile int index;
     public SyntaxToken Current => tokens[index];
+    public int Length => tokens.Count;
 
     public TokenCollection(ImmutableList<SyntaxToken> tokens_)
     {

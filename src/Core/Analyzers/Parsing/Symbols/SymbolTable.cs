@@ -1,43 +1,32 @@
 using System.Collections;
 namespace Pdcl.Core;
 
-public sealed class SymbolTable : IEnumerable<IList<Symbol>>
+public sealed class SymbolTable : IEnumerable<Symbol>
 {
-    private Dictionary<string, IList<Symbol>> symbolTable;
+    private HashSet<Symbol> symbolTable;
 
     public SymbolTable()
     {
-        symbolTable = new Dictionary<string, IList<Symbol>>();
+        symbolTable = new HashSet<Symbol>();
     }
 
     public Symbol? GetSymbol(string name, SymbolType type)
     {
-        if (symbolTable.ContainsKey(name))
-            foreach (Symbol symbol in symbolTable[name])
-                if (symbol.Type == type) return symbol;
-
-        return null;
+        return symbolTable.TryGetValue(new Symbol(name, type), out Symbol actual) ? actual : null;
     }
     public bool StoreSymbol(Symbol symbol)
     {
-        if (symbolTable.ContainsKey(symbol.Name))
-        {
-            if (symbolTable[symbol.Name].Contains(symbol))
-                return false;
-            symbolTable[symbol.Name].Add(symbol);
-        }
-        else symbolTable[symbol.Name] = new List<Symbol>() { symbol };
-        return true;
+        return symbolTable.Add(symbol);
     }
     public bool RemoveSymbol(string name, SymbolType type)
     {
-        return symbolTable.ContainsKey(name) && symbolTable[name].Remove(new Symbol(name, type));
+        return symbolTable.Remove(new Symbol(name, type));
     }
-    public IEnumerator<IList<Symbol>> GetEnumerator()
+    public IEnumerator<Symbol> GetEnumerator()
     {
-        foreach (KeyValuePair<string, IList<Symbol>> symbols in symbolTable)
+        foreach (Symbol symbol in symbolTable)
         {
-            yield return symbols.Value;
+            yield return symbol;
         }
     }
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();

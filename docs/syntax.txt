@@ -109,6 +109,9 @@ FUNCTION DECLARATION:
 . 
 . -int32 funcName(int32 arg1, nint arg2) {}
 . 
+. Operator overloading:
+.. [ret_type] operator [token] ([args_list]) [body]
+.. where [token] is an operator token to overload (for binary 2 args, for unary - 1) 
 
 STRUCTURE DECLARATION:
 

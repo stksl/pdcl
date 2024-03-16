@@ -2,14 +2,14 @@ using System.Collections.Immutable;
 
 namespace Pdcl.Core.Syntax;
 
-public sealed class FunctionDeclaration : ValueHolderNode, ISymboled
+public class FunctionDeclaration : ValueHolderNode, ISymboled
 {
     public readonly FunctionSignature Signature;
     public readonly FunctionBody Body;
 
     public string TableTreePath {get; private set;}
-    public FunctionDeclaration(FunctionSignature sig, FunctionBody body, string tableTreePath, int tokenInd) 
-        : base(sig.Name, sig.ReturnType, hasGetter: true, hasSetter: false, tokenInd)
+    public FunctionDeclaration(FunctionSignature sig, FunctionBody body, string tableTreePath) 
+        : base(sig.Name, sig.ReturnType, hasGetter: true, hasSetter: false)
     {
         TableTreePath = tableTreePath;
 
@@ -28,12 +28,12 @@ public sealed class FunctionSignature : SyntaxNode
     public readonly string Name;
     public readonly TypeNode ReturnType;
     public readonly ImmutableDictionary<string, TypeNode> Arguments;
-    public FunctionSignature(string name, TypeNode retType, ImmutableDictionary<string, TypeNode> args, int tokenInd) 
-        : base(tokenInd)
+    public FunctionSignature(string name, TypeNode retType, ImmutableDictionary<string, TypeNode> args) 
     {
         Name = name;
         ReturnType = retType;
         Arguments = args;
+
     }
 
     public override IEnumerable<SyntaxNode> GetChildren()
@@ -43,7 +43,7 @@ public sealed class FunctionSignature : SyntaxNode
 }
 public sealed class FunctionBody : SyntaxNode 
 {
-    public FunctionBody() : base(0)
+    public FunctionBody()
     {
         throw new Exception();
     }

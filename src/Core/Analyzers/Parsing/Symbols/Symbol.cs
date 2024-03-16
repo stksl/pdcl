@@ -49,7 +49,7 @@ public enum SymbolType : int
 {
     Undefined = 0,
 
-    LocalVar,
+    Variable,
     Function,
     TypeDefinition,
     Field,

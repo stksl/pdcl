@@ -67,4 +67,9 @@ public enum SyntaxKind : int
     NamespaceToken, // namespace
     IL_InlineToken, // il_inline
     ConstToken, // const
+    OperatorToken, // operator
+    ImplicitOperatorToken, // implicit
+    ExplicitOperatorToken, // explicit    
+    TrueToken, // true
+    FalseToken, // false
 }

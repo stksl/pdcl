@@ -7,7 +7,7 @@ namespace Pdcl.Core.Syntax;
 public sealed class RefValueNode : ValueNode 
 {
     public readonly ValueHolderNode Holder;
-    public RefValueNode(ValueHolderNode holder, int tokenInd) : base(tokenInd)
+    public RefValueNode(ValueHolderNode holder) : base(holder.Type)
     {
         Holder = holder;
     }

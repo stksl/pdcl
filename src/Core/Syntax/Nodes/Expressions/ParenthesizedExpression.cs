@@ -3,7 +3,7 @@ namespace Pdcl.Core.Syntax;
 public sealed class ParenthesizedExpression : ExpressionNode 
 {
     public readonly ValueNode Value;
-    public ParenthesizedExpression(ValueNode value, int tokenInd) : base(tokenInd)
+    public ParenthesizedExpression(ValueNode value) : base(value.Type)
     {
         Value = value;
     }

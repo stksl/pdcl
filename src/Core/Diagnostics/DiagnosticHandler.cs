@@ -69,6 +69,10 @@ internal sealed class DiagnosticHandler : IDiagnosticHandler
     {
         return reportErrorAsync(new Error(ErrorIdentifier.NoArgSeparator, $"No argument separator", line));
     }
+    public Task ReportTypeCheck(int line) 
+    {
+        return reportErrorAsync(new Error(ErrorIdentifier.TypeCheckFailure, $"Type check failure", line));
+    }
     private async Task reportErrorAsync(Error err) 
     {
         diagnostics.ReportError(err);

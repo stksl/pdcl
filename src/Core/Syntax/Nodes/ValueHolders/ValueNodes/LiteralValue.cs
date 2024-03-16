@@ -3,21 +3,13 @@ namespace Pdcl.Core.Syntax;
 public sealed class LiteralValue : ValueNode
 {
     public readonly SyntaxToken LiteralToken;
-    public readonly LiteralType Type;
-
-    public LiteralValue(SyntaxToken token, LiteralType type, int tokenInd) : base(tokenInd)
+    public new PrimitiveTypeNode Type => (PrimitiveTypeNode)base.Type;
+    public LiteralValue(SyntaxToken token, PrimitiveTypeNode type) : base(type)
     {
         LiteralToken = token;
-        Type = type;
     }
     public override IEnumerable<SyntaxNode> GetChildren()
     {
         return Array.Empty<SyntaxNode>();
-    }
-    public enum LiteralType
-    {
-        Number,
-        String,
-        Character
     }
 }

@@ -30,6 +30,7 @@ internal static class SyntaxFacts
         }
         return false;
     }
+    
     public static bool IsBinaryOperator(SyntaxKind kind, out BinaryOperator.BinaryOperators? op_)
     {
         op_ = null;
@@ -79,6 +80,30 @@ internal static class SyntaxFacts
                 break;
             case SyntaxKind.EqualToken:
                 op_ = BinaryOperator.BinaryOperators.Equals;
+                break;
+            default: return false;
+        }
+        return true;
+    }
+    public static bool IsUnaryOperator(SyntaxKind kind, out UnaryOperator.UnaryOperators? unaryOp) 
+    {
+        unaryOp = null;
+        switch(kind) 
+        {
+            case SyntaxKind.IncrementToken:
+                unaryOp = UnaryOperator.UnaryOperators.Increment;
+                break;
+            case SyntaxKind.DecrementToken:
+                unaryOp = UnaryOperator.UnaryOperators.Decrement;
+                break;
+            case SyntaxKind.ExclamationToken:
+                unaryOp = UnaryOperator.UnaryOperators.Not;
+                break;
+            case SyntaxKind.MinusToken:
+                unaryOp = UnaryOperator.UnaryOperators.Minus;
+                break;
+            case SyntaxKind.OpenBracketToken:
+                unaryOp = UnaryOperator.UnaryOperators.Cast;
                 break;
             default: return false;
         }

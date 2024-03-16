@@ -1,1 +1,4 @@
-const int32 a = ('c' + 122 / 1) ^ "asd";
+namespace testns 
+{
+    const bool cnst = [uint32](2L + (1.5f % -22.3 / 1) ^ 2); 
+}

@@ -5,7 +5,7 @@ namespace Pdcl.Core.Syntax;
 /// <summary>
 /// An abstract syntax tree (AST).
 /// </summary>
-internal sealed class SyntaxTree
+public sealed class SyntaxTree
 {
     public readonly SyntaxNode Root;
 
@@ -25,7 +25,9 @@ internal sealed class SyntaxTree
     }
     public SyntaxNode? GetParent(SyntaxNode node, SyntaxNode parent = null!) 
     {
-        if (parent == null) parent = Root;
+        throw new NotSupportedException();
+        // no point for now
+        /* if (parent == null) parent = Root;
 
         foreach(SyntaxNode child in parent.GetChildren()) 
         {
@@ -34,12 +36,12 @@ internal sealed class SyntaxTree
                 return parent; 
             } 
         }
-        return null;
+        return null; */
     }
     internal sealed class ApplicationContextNode : SyntaxNode
     {
         private List<SyntaxNode> globalNodes; // those could be any of: global var, type declaration, func declaration
-        public ApplicationContextNode() : base(0)
+        public ApplicationContextNode()
         {
             globalNodes = new List<SyntaxNode>();
         }

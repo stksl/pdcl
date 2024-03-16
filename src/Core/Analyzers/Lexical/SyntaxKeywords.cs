@@ -19,5 +19,10 @@ internal sealed partial class Lexer
             new KeyValuePair<string, SyntaxKind>("return", SyntaxKind.ReturnToken),
             new KeyValuePair<string, SyntaxKind>("il_inline", SyntaxKind.IL_InlineToken),
             new KeyValuePair<string, SyntaxKind>("const", SyntaxKind.ConstToken),
+            new KeyValuePair<string, SyntaxKind>("operator", SyntaxKind.OperatorToken),
+            new KeyValuePair<string, SyntaxKind>("implicit", SyntaxKind.ImplicitOperatorToken),
+            new KeyValuePair<string, SyntaxKind>("explicit", SyntaxKind.ExplicitOperatorToken),            
+            new KeyValuePair<string, SyntaxKind>("false", SyntaxKind.FalseToken),
+            new KeyValuePair<string, SyntaxKind>("true", SyntaxKind.TrueToken),
        });
 }

@@ -3,7 +3,7 @@ namespace Pdcl.Core.Syntax;
 public sealed class BinaryOperator : OperatorNode
 {
     public readonly BinaryOperators OperatorType;
-    public BinaryOperator(BinaryOperators op, int tokenInd) : base(tokenInd)
+    public BinaryOperator(BinaryOperators op)
     {
         OperatorType = op;
     }

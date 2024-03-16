@@ -1,3 +1,5 @@
+using Pdcl.Core.Syntax.Semantics;
+
 namespace Pdcl.Core.Syntax;
 
 internal sealed class ConstVarVisitor : IVisitor<ConstVarNode> 
@@ -16,24 +18,28 @@ internal sealed class ConstVarVisitor : IVisitor<ConstVarNode>
         }
         parser.tokens.Increment();
 
-        TypeNode? type = await VisitorFactory.GetVisitorFor<TypeNode>()!.VisitAsync(parser);
+        TypeNode? type = await VisitorFactory.GetVisitorFor<TypeNode>(parser.context)!.VisitAsync(parser);
 
         string? name = SyntaxHelper.ParseVariableName(parser);        
         if (name != null) parser.tokens.Increment();
 
-        ConstVarNode curr = new ConstVarNode(name!, type!, null!, parser.tokens.Index);
+        // null as const value for now, later on parsing expressions make literal checks
+        ConstVarNode curr = new ConstVarNode(name!, type!);
 
         IExpressionVisitor<AssignExpression> visitor = 
-            (IExpressionVisitor<AssignExpression>)VisitorFactory.GetVisitorFor<AssignExpression>()!;
+            (IExpressionVisitor<AssignExpression>)VisitorFactory.GetVisitorFor<AssignExpression>(parser.context)!;
 
-        AssignExpression? exp = await visitor.VisitAsync(parser, new RefValueNode(curr, parser.tokens.Index));
+        AssignExpression? exp = await visitor.VisitAsync(parser, new RefValueNode(curr));
 
+        if (exp == null || !exp.Right.Type.ImplicitTypeCheck(type!)) 
+        {
+            await parser.diagnostics.ReportTypeCheck(parser.tokens.Current.Metadata.Line);
+        }
         if (parser.tokens.Current.Kind != SyntaxKind.SemicolonToken) 
         {
             await parser.diagnostics.ReportSemicolonExpected(parser.tokens.Current.Metadata.Line);
-        }
+        } else parser.tokens.Increment();
 
-        curr.ConstValue = exp != null ? SyntaxHelper.ParseLiteralExpression(exp)! : null!;
         return curr;
     }
 }

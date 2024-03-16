@@ -1,5 +1,5 @@
 # pdcl - a **P**rocedure **D**otnet-**C**ompatible **L**anguage .
-### cdcl is a procedure programming language that is translated into MSIL, does not support OOP.
+### pdcl is a procedure programming language that is translated into MSIL, does not support OOP.
 
 #### A brief info
 

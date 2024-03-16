@@ -2,8 +2,10 @@ namespace Pdcl.Core.Syntax;
 
 internal static class VisitorFactory
 {
-    public static IVisitor<TNode>? GetVisitorFor<TNode>() where TNode : SyntaxNode 
+    public static IVisitor<TNode>? GetVisitorFor<TNode>(in CompilationContext ctx)
+        where TNode : SyntaxNode 
     {
+        ctx.NodeType = typeof(TNode);
         switch(typeof(TNode).Name) 
         {
 
@@ -22,12 +24,18 @@ internal static class VisitorFactory
                 return (IVisitor<TNode>)(IVisitor<ParenthesizedExpression>)ParenthesizedExpressionVisitor.Instance;
             case nameof(AssignExpression):
                 return (IVisitor<TNode>)(IVisitor<AssignExpression>)AssignExpressionVisitor.Instance;
+            case nameof(UnaryExpression):
+                return (IVisitor<TNode>)(IVisitor<UnaryExpression>)UnaryExpressionVisitor.Instance;
+
 
             case nameof(ValueNode):
                 return (IVisitor<TNode>)(IVisitor<ValueNode>)ValueNodeVisitor.Instance;
 
             case nameof(TypeNode):
                 return (IVisitor<TNode>)(IVisitor<TypeNode>)TypeNodeVisitor.Instance;
+
+            case nameof(NamespaceNode):
+                return (IVisitor<TNode>)(IVisitor<NamespaceNode>)NamespaceVisitor.Instance;
             default:
                 return null;
         }

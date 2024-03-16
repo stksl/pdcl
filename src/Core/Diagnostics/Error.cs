@@ -48,4 +48,5 @@ public enum ErrorIdentifier : int
     UnkownOperandSyntax,
     NoArgSeparator,
     UnknownOperationSyntax,
+    TypeCheckFailure,
 }

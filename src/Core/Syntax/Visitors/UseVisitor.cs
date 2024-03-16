@@ -9,12 +9,8 @@ internal sealed class UseVisitor : IVisitor<UseNode>
     private UseVisitor() { }
     public async Task<UseNode?> VisitAsync(Parser parser)
     {
-        if (parser.tokens.Current.Kind != SyntaxKind.UseToken)
-        {
-            await parser.diagnostics.ReportUnsuitableSyntaxToken(
-                parser.tokens.Current.Metadata.Line, parser.tokens.Current, SyntaxKind.UseToken);
+        if (!SyntaxHelper.CheckTokens(parser, SyntaxKind.UseToken))
             return null;
-        }
         parser.tokens.Increment();
         StringBuilder nsIdentifier = new StringBuilder();
         SyntaxToken prevToken = parser.tokens.Current;
@@ -31,9 +27,8 @@ internal sealed class UseVisitor : IVisitor<UseNode>
         if (parser.tokens.Current.Kind != SyntaxKind.SemicolonToken) 
         {
             await parser.diagnostics.ReportSemicolonExpected(parser.tokens.Current.Metadata.Line);
-            return null;
         }
         parser.tokens.Increment();
-        return new UseNode(nsIdentifier.ToString(), parser.tokens.Index);
+        return new UseNode(nsIdentifier.ToString());
     }
 }

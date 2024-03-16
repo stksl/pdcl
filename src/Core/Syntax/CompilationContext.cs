@@ -2,5 +2,9 @@ namespace Pdcl.Core.Syntax;
 
 public sealed class CompilationContext 
 {
-    public SyntaxNode Parent;
+    /// <summary>
+    /// Current node type
+    /// </summary>
+    public volatile Type NodeType = null!;
+
 }

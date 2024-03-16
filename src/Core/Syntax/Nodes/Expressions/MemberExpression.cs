@@ -8,10 +8,12 @@ public sealed class MemberExpression : ExpressionNode
 {
     public readonly RefValueNode Parent;
     public readonly MemberExpressionNode Root;
-    public MemberExpression(RefValueNode parent, MemberExpressionNode root, int tokenInd) : base(tokenInd)
+    public readonly MemberExpressionNode Tail;
+    public MemberExpression(RefValueNode parent, MemberExpressionNode root, MemberExpressionNode tail) : base(tail.Type)
     {
         Parent = parent;
         Root = root;
+        Tail = tail;
     }
 
     public override IEnumerable<SyntaxNode> GetChildren()
@@ -20,11 +22,11 @@ public sealed class MemberExpression : ExpressionNode
         yield return Root;
     }
 }
-public sealed class MemberExpressionNode : SyntaxNode 
+public sealed class MemberExpressionNode : ExpressionNode 
 {
     public readonly MemberInvoke Member;
     public readonly MemberExpressionNode? Next;
-    public MemberExpressionNode(MemberInvoke member, MemberExpressionNode? next, int tokenInd) : base(tokenInd)
+    public MemberExpressionNode(MemberInvoke member, MemberExpressionNode? next) : base(member.Holder.Type) 
     {
         Member = member;
         Next = next;

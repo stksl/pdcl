@@ -1,9 +1,5 @@
 using System.Collections.Immutable;
-using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Text;
-using Pdcl.Core.Diagnostics;
 using Pdcl.Core.Preproc;
 using Pdcl.Core.Syntax;
 using Pdcl.Core.Text;
@@ -29,8 +25,8 @@ internal sealed partial class Lexer
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> success(SyntaxKind kind, int startPos, string? raw, ulong metadata = 0)
         => new AnalyzerResult<SyntaxToken?, LexerStatusCode>(
             new SyntaxToken(
-                kind, 
-                new LexemeMetadata(new TextPosition(startPos, stream.Position - startPos), currLine, raw!, metadata)), 
+                kind,
+                new LexemeMetadata(new TextPosition(startPos, stream.Position - startPos), currLine, raw!, metadata)),
             LexerStatusCode.Success);
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> EOF() =>
         new AnalyzerResult<SyntaxToken?, LexerStatusCode>(null, LexerStatusCode.EOF);
@@ -76,22 +72,14 @@ internal sealed partial class Lexer
                 }
                 return success(SyntaxKind.PlusToken, stream.Position - 1, "+");
             case '-':
-                int pos = stream.Position;
                 stream.Position++;
-                if (stream.handleLeadingTrivia(out var trivia_, out int linesSkipped_))
-                {
-                    triviasMap[trivia_!.Position.Position] = trivia_;
-                    currLine += linesSkipped_;
-                }
-                else if (stream.Peek() == '-')
+                if (stream.Peek() == '-')
                 {
                     stream.Position++;
                     return success(SyntaxKind.DecrementToken, stream.Position - 2, "--");
                 }
 
-                if (char.IsDigit(stream.Peek()))
-                    return lexNumber(isNegative: true);
-                return success(SyntaxKind.MinusToken, pos, "-");
+                return success(SyntaxKind.MinusToken, stream.Position - 1, "-");
             case '*':
                 return success(SyntaxKind.StarToken, stream.Position++, "*");
             case '/':
@@ -203,7 +191,7 @@ internal sealed partial class Lexer
             case '\'':
                 return lexCharLiteral();
             case >= '0' and <= '9':
-                return lexNumber(isNegative: false);
+                return lexNumber();
         }
         // pipeline
         return lexText();
@@ -260,50 +248,61 @@ internal sealed partial class Lexer
         return success(SyntaxKeywords[raw], stream.Position - raw.Length, raw);
     }
 
-    private IAnalyzerResult<SyntaxToken?, LexerStatusCode> lexNumber(bool isNegative)
+    private IAnalyzerResult<SyntaxToken?, LexerStatusCode> lexNumber()
     {
         StringBuilder sb = new StringBuilder();
         /*
-            0 => integer
-            1 => floating point
-            2 => hex number
+            1 => integer
+            1 << 1 => long literal (l/L)
+
+            1 << 2 => float32 literal (f/F)
+            1 << 3 => float64
+
+            1 << 4 => unsigned
             
         */
-        ulong numberMetadata = 0;
-
-        if (isNegative) sb.Append('-');
-
-        if (stream.Advance() == '0' && stream.Peek() == 'x')
+        ulong numberMetadata = 0b1;
+        while (char.IsDigit(stream.Peek()))
         {
-            // a hex number
-            stream.Position++;
-            numberMetadata = 2;
-            while (char.IsAsciiHexDigit(stream.Peek()))
-            {
-                if (sb.Length > 16)
-                    return new AnalyzerResult<SyntaxToken?, LexerStatusCode>(null, LexerStatusCode.OutOfLiteralRange);
-                sb.Append(stream.Advance());
-            }
+            sb.Append(stream.Advance());
 
+            if (stream.Peek() == '.')
+            {
+                if (numberMetadata == 1 << 3)
+                    return new AnalyzerResult<SyntaxToken?, LexerStatusCode>(null, LexerStatusCode.OutOfLiteralRange);
+
+                sb.Append(stream.Advance());
+                numberMetadata |= 1 << 3;
+                numberMetadata ^= 0b1;
+            }
+        }
+
+        int suffixSize = 0;
+        if ("fF".Contains(stream.Peek()))
+        {
+            numberMetadata |= 1 << 2;
+            stream.Position++;
+            numberMetadata ^= 1 << 3;
+            suffixSize++;
         }
         else
         {
-            stream.Position--;
-            while (char.IsDigit(stream.Peek()))
+            if ("uU".Contains(stream.Peek()))
             {
-                sb.Append(stream.Advance());
-
-                if (stream.Peek() == '.') 
-                {
-                    if (numberMetadata == 1) 
-                        return new AnalyzerResult<SyntaxToken?, LexerStatusCode>(null, LexerStatusCode.OutOfLiteralRange);
-                    
-                    numberMetadata = 1;
-                }
+                numberMetadata |= 1 << 4;
+                stream.Position++;
+                suffixSize++;
+            }
+            if ("lL".Contains(stream.Peek()))
+            {
+                numberMetadata |= 1 << 1;
+                stream.Position++;
+                suffixSize++;
             }
         }
+
         string raw = sb.ToString();
-        return success(SyntaxKind.NumberToken, stream.Position - raw.Length, raw, numberMetadata);
+        return success(SyntaxKind.NumberToken, stream.Position - raw.Length - suffixSize, raw, numberMetadata);
     }
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> lexStringLiteral()
     {
@@ -343,7 +342,7 @@ internal sealed partial class Lexer
             escaped = 1;
         }
         else val = stream.Peek();
-        stream.Position+=2;
+        stream.Position += 2;
         return success(SyntaxKind.CharLiteral, stream.Position - 3 - escaped, val.ToString());
 
     }
@@ -375,7 +374,7 @@ internal sealed partial class Lexer
         switch (dir)
         {
             case BranchedDirective branched:
-                if (!branched.Result) 
+                if (!branched.Result)
                 {
                     goto default;
                 }

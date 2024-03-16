@@ -4,20 +4,18 @@ internal sealed class TypeNodeVisitor : IVisitor<TypeNode>
 {
     public static TypeNodeVisitor Instance => _instance;
     private static TypeNodeVisitor _instance = new TypeNodeVisitor();
+    private TypeNodeVisitor() {}
     public async Task<TypeNode?> VisitAsync(Parser parser) 
     {
-        if (parser.tokens.Current.Kind != SyntaxKind.TextToken) 
-        {
-            await parser.diagnostics.ReportUnsuitableSyntaxToken(
-                parser.tokens.Current.Metadata.Line, parser.tokens.Current, SyntaxKind.TextToken);
+        if (!SyntaxHelper.CheckTokens(parser, SyntaxKind.TextToken))
             return null;
-        }
 
         string typeName = parser.tokens.Current.Metadata.Raw;
         if (SyntaxFacts.IsPrimitiveType(typeName, out PrimitiveTypeNode.PrimitiveTypes? type)) 
         {
             parser.tokens.Increment();
-            return new PrimitiveTypeNode(type!.Value, typeName, null!, parser.tokens.Index);
+
+            return new PrimitiveTypeNode(type!.Value);
         }
         
         Symbol? symbol = parser.GetCurrentTableNode().GetSymbol(typeName, SymbolType.TypeDefinition);
@@ -27,6 +25,6 @@ internal sealed class TypeNodeVisitor : IVisitor<TypeNode>
             return null;
         }
         parser.tokens.Increment();
-        return new TypeNode(typeName, (TypeDeclarationNode)symbol.Value.Node, parser.tokens.Index);
+        return new TypeNode((TypeDeclarationNode)symbol.Value.Node);
     }
 }

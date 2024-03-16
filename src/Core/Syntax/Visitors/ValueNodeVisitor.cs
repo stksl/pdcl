@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection.Metadata;
 using System.Xml;
 
 namespace Pdcl.Core.Syntax;
@@ -9,16 +10,24 @@ internal sealed partial class ValueNodeVisitor : IVisitor<ValueNode>
     public static ValueNodeVisitor Instance => _instance;
     private static ValueNodeVisitor _instance = new();
     private ValueNodeVisitor() {} 
-    public async Task<ValueNode?> VisitAsync(Parser parser)
+    public Task<ValueNode?> VisitAsync(Parser parser)
+    {
+        return VisitAsync(parser, checkPrefixUnary: true, checkOtherExp: true);
+    }
+    // We dont want to check expressions recursivelly when parsing an unary expression
+    internal async Task<ValueNode?> VisitAsync(Parser parser, bool checkPrefixUnary, bool checkOtherExp)
     {
         ValueNode? result = null;
         switch(parser.tokens.Current.Kind) 
         {
+            case > 0 when checkPrefixUnary && SyntaxFacts.IsUnaryOperator(parser.tokens.Current.Kind, out _): // prefix unary op
+                result = await VisitorFactory.GetVisitorFor<UnaryExpression>(parser.context)!.VisitAsync(parser);
+                break;
             case > 0 when SyntaxFacts.IsLiteralKind(parser.tokens.Current.Kind):
                 result = await VisitLiteralAsync(parser);
             break;
             case SyntaxKind.OpenParentheseToken:
-                result = await VisitorFactory.GetVisitorFor<ParenthesizedExpression>()!.VisitAsync(parser);
+                result = await VisitorFactory.GetVisitorFor<ParenthesizedExpression>(parser.context)!.VisitAsync(parser);
                 break;
             case SyntaxKind.TextToken:
                 result = parser.tokens.Check(1)!.Value.Kind switch 
@@ -34,25 +43,69 @@ internal sealed partial class ValueNodeVisitor : IVisitor<ValueNode>
                 break;
         }
         
-
-        if (result != null && SyntaxFacts.IsBinaryOperator(parser.tokens.Current.Kind, out _)) 
+        if (result != null && checkOtherExp) 
         {
-            IExpressionVisitor<BinaryExpression> visitor = 
-                (IExpressionVisitor<BinaryExpression>)VisitorFactory.GetVisitorFor<BinaryExpression>()!;
-            result = await visitor.VisitAsync(parser, result);
+            if (SyntaxFacts.IsBinaryOperator(parser.tokens.Current.Kind, out _)) 
+            {
+                var visitor = 
+                    (IExpressionVisitor<BinaryExpression>)VisitorFactory.GetVisitorFor<BinaryExpression>(parser.context)!;
+                result = await visitor.VisitAsync(parser, result);
+            }
+            else if (SyntaxFacts.IsUnaryOperator(parser.tokens.Current.Kind, out _)) 
+            {
+                var visitor = 
+                    (IExpressionVisitor<UnaryExpression>)VisitorFactory.GetVisitorFor<UnaryExpression>(parser.context)!;
+                result = await visitor.VisitAsync(parser, result);
+            }
         }
+
         return result;
     }
-    private Task<LiteralValue> VisitLiteralAsync(Parser parser)
+    private async Task<LiteralValue> VisitLiteralAsync(Parser parser)
     {
-        LiteralValue.LiteralType literalType = parser.tokens.Current.Kind switch
+        PrimitiveTypeNode.PrimitiveTypes pType = default;
+        switch(parser.tokens.Current.Kind) 
         {
-            SyntaxKind.StringLiteral => LiteralValue.LiteralType.String,
-            SyntaxKind.CharLiteral => LiteralValue.LiteralType.Character,
-            _ => LiteralValue.LiteralType.Number
-        };
-        
-        var res = Task.FromResult(new LiteralValue(parser.tokens.Current, literalType, parser.tokens.Index));
+            case SyntaxKind.CharLiteral:
+                pType = PrimitiveTypeNode.PrimitiveTypes.Char;
+                break;
+            case SyntaxKind.StringLiteral:
+                pType = PrimitiveTypeNode.PrimitiveTypes.String;
+                break;
+            case SyntaxKind.TrueToken:
+            case SyntaxKind.FalseToken:
+                pType = PrimitiveTypeNode.PrimitiveTypes.Bool;
+                break;
+            case SyntaxKind.NumberToken:
+                ulong mdata = parser.tokens.Current.Metadata.AdditionalMetadata;
+
+                bool isUnsigned = (mdata & (1 << 4)) == (1 << 4);
+                bool isLong = (mdata & (1 << 1)) == (1 << 1);
+                bool isSingle = (mdata & (1 << 2)) == (1 << 2);
+                bool isDouble = (mdata & (1 << 3)) == (1 << 3);
+                bool isInteger = (mdata & 1) == 1;
+
+                if (isUnsigned) 
+                {
+                    if (isSingle || isDouble) 
+                    {
+                        await parser.diagnostics.ReportUnkownOperandSyntax(parser.tokens.Current.Metadata.Line, 
+                            parser.tokens.Current.Metadata.Raw);
+                        return null!;
+                    }
+                    pType = isLong ? PrimitiveTypeNode.PrimitiveTypes.UInt64 : PrimitiveTypeNode.PrimitiveTypes.UInt32;
+                }
+                else if (isInteger) 
+                {
+                    pType = isLong ? PrimitiveTypeNode.PrimitiveTypes.Int64 : PrimitiveTypeNode.PrimitiveTypes.Int32;
+                }
+                else 
+                {
+                    pType = isDouble ? PrimitiveTypeNode.PrimitiveTypes.Float64 : PrimitiveTypeNode.PrimitiveTypes.Float32;
+                }
+                break;
+        }            
+        LiteralValue res = new LiteralValue(parser.tokens.Current, new PrimitiveTypeNode(pType));
         parser.tokens.Increment();
         return res;
     }
@@ -60,7 +113,7 @@ internal sealed partial class ValueNodeVisitor : IVisitor<ValueNode>
     {
         string name = parser.tokens.Current.Metadata.Raw;
 
-        Symbol? symbol = parser.GetCurrentTableNode().Table!.GetSymbol(name, SymbolType.LocalVar) ??
+        Symbol? symbol = parser.GetCurrentTableNode().Table!.GetSymbol(name, SymbolType.Variable) ??
             parser.GetCurrentTableNode().Table!.GetSymbol(name, SymbolType.Field);
         if (!symbol.HasValue)
         {
@@ -69,7 +122,7 @@ internal sealed partial class ValueNodeVisitor : IVisitor<ValueNode>
         }
         parser.tokens.Increment();
 
-        return new RefValueNode((ValueHolderNode)symbol.Value.Node, parser.tokens.Index);
+        return new RefValueNode((ValueHolderNode)symbol.Value.Node);
     }
     private async Task<FunctionInvoke?> VisitFuncInvokeAsync(Parser parser, SymbolTreeNode treeNode)
     {
@@ -85,7 +138,7 @@ internal sealed partial class ValueNodeVisitor : IVisitor<ValueNode>
         int index = 0;
         while (parser.tokens.Current.Kind != SyntaxKind.CloseParentheseToken)
         {
-            ValueNode? passedVal = await VisitorFactory.GetVisitorFor<ValueNode>()!.VisitAsync(parser);
+            ValueNode? passedVal = await VisitorFactory.GetVisitorFor<ValueNode>(parser.context)!.VisitAsync(parser);
             if (passedVal != null) passedVals.Add(passedVal);
 
             if (parser.tokens.Current.Kind != SyntaxKind.CommaToken && parser.tokens.Current.Kind != SyntaxKind.CloseParentheseToken)
@@ -96,30 +149,34 @@ internal sealed partial class ValueNodeVisitor : IVisitor<ValueNode>
             index++;
         }
         parser.tokens.Increment();
-        return new FunctionInvoke((FunctionDeclaration)function.Value.Node, passedVals.ToImmutableArray(),
-            parser.tokens.Index);
+        return new FunctionInvoke((FunctionDeclaration)function.Value.Node, passedVals.ToImmutableArray());
     }
     private async Task<MemberExpression?> VisitMemberExpAsync(Parser parser) 
     {
         RefValueNode? refNode = await VisitRefAsync(parser);
 
-        parser.tokens.SetOffset(2);
+        parser.tokens.Increment(); // skipping '.'
 
         MemberExpressionNode? root = null;
         if (refNode != null) root = await visitMemberExp(parser, refNode.Holder);
         
-        return new MemberExpression(refNode!, root!, parser.tokens.Index);
+        MemberExpressionNode? tail = root;
+        while (tail?.Next != null) 
+        {
+            tail = tail.Next;
+        } 
+        return new MemberExpression(refNode!, root!, tail!);
     }
     private async Task<MemberExpressionNode?> visitMemberExp(Parser parser, ValueHolderNode holder) 
     {
-        if (parser.tokens.Current.Kind != SyntaxKind.TextToken) 
+        if (!SyntaxHelper.CheckTokens(parser, SyntaxKind.TextToken)) 
         {
             await parser.diagnostics.ReportUnsuitableSyntaxToken(parser.tokens.Current.Metadata.Line, 
                 parser.tokens.Current, SyntaxKind.TextToken);
             return null;
         }
 
-        SymbolTreeNode treeNode = parser.TableTree.GetNode(holder.Type.TypeDeclaration.TableTreePath)!;
+        SymbolTreeNode treeNode = parser.AssemblyInfo.TableTree.GetNode(holder.Type.TypeDeclaration.TableTreePath)!;
 
         MemberInvoke? member = null;
         if (parser.tokens.Check(1)!.Value.Kind == SyntaxKind.OpenParentheseToken) 
@@ -128,8 +185,7 @@ internal sealed partial class ValueNodeVisitor : IVisitor<ValueNode>
 
             if (funcInv != null) 
             {
-                member = new FunctionMemberInvoke(funcInv.Function.Name, funcInv.Function, 
-                    funcInv.PassedVals, parser.tokens.Index);
+                member = new FunctionMemberInvoke(funcInv.Function.Name, funcInv.Function, funcInv.PassedVals);
             }
         }
         else 
@@ -143,14 +199,11 @@ internal sealed partial class ValueNodeVisitor : IVisitor<ValueNode>
                 return null;
             }
             parser.tokens.Increment();
-            member = new FieldInvoke(fldName, (FieldDeclaration)symbol_.Value.Node, parser.tokens.Index);
+            member = new FieldInvoke(fldName, (FieldDeclaration)symbol_.Value.Node);
         }
         bool last = parser.tokens.Current.Kind != SyntaxKind.DotToken;
         if (!last) parser.tokens.Increment();
 
-        return new MemberExpressionNode(
-            member!, 
-            last ? null : await visitMemberExp(parser, member?.Holder!), 
-            parser.tokens.Index);
+        return new MemberExpressionNode(member!, last ? null : await visitMemberExp(parser, member?.Holder!));
     }
 }
