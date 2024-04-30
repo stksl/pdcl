@@ -1,11 +1,19 @@
+
 namespace Pdcl.Core.Syntax;
 
-public class FunctionMemberDeclaration : FunctionDeclaration, IMemberNode
+public sealed class FunctionMemberDeclaration : MemberNode, ISymboled
 {
-    public MemberModifiers Modifiers {get; private set;}
-    public FunctionMemberDeclaration(FunctionSignature sig, FunctionBody body, MemberModifiers mods, string tableTreePath)
-        : base(sig, body, tableTreePath)
+    public readonly FunctionDeclaration Function;
+    public string TableTreePath {get; private set;}
+    public FunctionMemberDeclaration(FunctionDeclaration function, AccessModifiers mods, string tableTreePath)
+        : base(mods, function.Name, function.Signature.ReturnType, hasGetter: true, hasSetter: false)
     {
-        Modifiers = mods;
+        Function = function;
+        TableTreePath = tableTreePath;
+    }
+
+    public override IEnumerable<SyntaxNode> GetChildren()
+    {
+        yield return Function;
     }
 }

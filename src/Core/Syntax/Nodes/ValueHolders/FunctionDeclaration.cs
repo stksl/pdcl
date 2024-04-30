@@ -43,12 +43,18 @@ public sealed class FunctionSignature : SyntaxNode
 }
 public sealed class FunctionBody : SyntaxNode 
 {
-    public FunctionBody()
+    public readonly LinkedListNode<BodyEnclosedNode> Head;
+    public FunctionBody(LinkedListNode<BodyEnclosedNode> head)
     {
-        throw new Exception();
+        Head = head;
     }
     public override IEnumerable<SyntaxNode> GetChildren()
     {
-        throw new NotImplementedException();
+        var runner = Head;
+        while (runner != null) 
+        {
+            yield return runner.Value;
+            runner = runner.Next;
+        }
     }
 }

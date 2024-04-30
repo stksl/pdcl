@@ -5,7 +5,6 @@ internal static class ErrorRecoverer
 {
     public static async Task RecoverAsync(Error error, CompilationContext ctx) 
     {
-        
         await Task.Run(null!);
     } 
 }

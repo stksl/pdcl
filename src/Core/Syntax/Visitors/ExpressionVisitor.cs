@@ -12,22 +12,22 @@ internal sealed class BinaryExpressionVisitor : IExpressionVisitor<BinaryExpress
     private BinaryExpressionVisitor() { }
     public async Task<BinaryExpression?> VisitAsync(Parser parser, ValueNode left)
     {
-        if (!SyntaxFacts.IsBinaryOperator(parser.tokens.Current.Kind, out BinaryOperator.BinaryOperators? op))
+        if (!SyntaxFacts.IsBinaryOperator(parser.CurrentToken.Kind, out BinaryOperator.BinaryOperators? op))
         {
-            await parser.diagnostics.ReportUnkownOperationSyntax(parser.tokens.Current.Metadata.Line,
-                parser.tokens.Current.Metadata.Raw);
+            await parser.diagnostics.ReportUnkownOperationSyntax(parser.CurrentToken.Metadata.Line,
+                parser.CurrentToken.Metadata.Raw);
             return null;
         }
 
         BinaryOperator operator_ = new BinaryOperator(op!.Value);
-        parser.tokens.Increment();
+        parser.ConsumeToken();
         ValueNode? right = await VisitorFactory.GetVisitorFor<ValueNode>(parser.context)!.VisitAsync(parser);
         
         TypeNode? resultType = right == null ? null :
             left.Type.BinaryExpTypeCheck(right.Type, operator_.OperatorType) ?? right.Type.BinaryExpTypeCheck(left.Type, operator_.OperatorType);
         if (resultType == null) 
         {
-            await parser.diagnostics.ReportTypeCheck(parser.tokens.Current.Metadata.Line);
+            await parser.diagnostics.ReportTypeCheck(parser.CurrentToken.Metadata.Line);
         }
         return new BinaryExpression(operator_, left, right!, resultType!);
     }
@@ -44,18 +44,14 @@ internal sealed class ParenthesizedExpressionVisitor : IExpressionVisitor<Parent
 
     public async Task<ParenthesizedExpression?> VisitAsync(Parser parser)
     {
-        if (!SyntaxHelper.CheckTokens(parser, SyntaxKind.OpenParentheseToken))
+        if (parser.IsConsumeMissed(SyntaxKind.OpenParentheseToken)) 
+        {
             return null;
-        
-        parser.tokens.Increment();
+        }
 
         ValueNode? value = await VisitorFactory.GetVisitorFor<ValueNode>(parser.context)!.VisitAsync(parser);
-        if (parser.tokens.Current.Kind != SyntaxKind.CloseParentheseToken)
-        {
-            await parser.diagnostics.ReportUnsuitableSyntaxToken(parser.tokens.Current.Metadata.Line,
-                parser.tokens.Current, SyntaxKind.CloseParentheseToken);
-        }
-        else parser.tokens.Increment();
+        
+        parser.ConsumeToken(SyntaxKind.CloseParentheseToken);
         return new ParenthesizedExpression(value!);
     }
     public Task<ParenthesizedExpression?> VisitAsync(Parser parser, ValueNode left)
@@ -69,13 +65,9 @@ internal sealed class AssignExpressionVisitor : IExpressionVisitor<AssignExpress
 
     public async Task<AssignExpression?> VisitAsync(Parser parser, ValueNode left)
     {
-        if (parser.tokens.Current.Kind != SyntaxKind.EqualToken)
-        {
-            await parser.diagnostics.ReportUnkownOperationSyntax(parser.tokens.Current.Metadata.Line,
-                parser.tokens.Current.Metadata.Raw);
+        if (parser.IsConsumeMissed(SyntaxKind.EqualToken)) 
             return null;
-        }
-        parser.tokens.Increment();
+            
         ValueNode? right = await VisitorFactory.GetVisitorFor<ValueNode>(parser.context)!.VisitAsync(parser);
 
         return new AssignExpression((RefValueNode)left, right!);
@@ -99,19 +91,19 @@ internal sealed class UnaryExpressionVisitor : IExpressionVisitor<UnaryExpressio
     /// <returns></returns>
     public async Task<UnaryExpression?> VisitAsync(Parser parser, ValueNode left)
     {
-        if (!SyntaxFacts.IsUnaryOperator(parser.tokens.Current.Kind, out UnaryOperator.UnaryOperators? op))
+        if (!SyntaxFacts.IsUnaryOperator(parser.CurrentToken.Kind, out UnaryOperator.UnaryOperators? op))
         {
-            await parser.diagnostics.ReportUnkownOperationSyntax(parser.tokens.Current.Metadata.Line,
-                parser.tokens.Current.Metadata.Raw);
+            await parser.diagnostics.ReportUnkownOperationSyntax(parser.CurrentToken.Metadata.Line,
+                parser.CurrentToken.Metadata.Raw);
             return null;
         }
 
-        parser.tokens.Increment();
+        parser.ConsumeToken();
         UnaryOperator postfixOp = new UnaryOperator(op!.Value, false);
         TypeNode? resultType = left.Type.UnaryTypeCheck(postfixOp.OperatorType);
         if (resultType == null) 
         {
-            await parser.diagnostics.ReportTypeCheck(parser.tokens.Current.Metadata.Line);
+            await parser.diagnostics.ReportTypeCheck(parser.CurrentToken.Metadata.Line);
         }
         return new UnaryExpression(postfixOp, left, resultType!);
     }
@@ -123,25 +115,20 @@ internal sealed class UnaryExpressionVisitor : IExpressionVisitor<UnaryExpressio
     /// <exception cref="NotImplementedException"></exception>
     public async Task<UnaryExpression?> VisitAsync(Parser parser)
     {
-        if (!SyntaxFacts.IsUnaryOperator(parser.tokens.Current.Kind, out UnaryOperator.UnaryOperators? op))
+        if (!SyntaxFacts.IsUnaryOperator(parser.CurrentToken.Kind, out UnaryOperator.UnaryOperators? op))
         {
-            await parser.diagnostics.ReportUnkownOperationSyntax(parser.tokens.Current.Metadata.Line,
-                parser.tokens.Current.Metadata.Raw);
+            await parser.diagnostics.ReportUnkownOperationSyntax(parser.CurrentToken.Metadata.Line,
+                parser.CurrentToken.Metadata.Raw);
             return null;
         }
 
-        parser.tokens.Increment();
+        parser.ConsumeToken();
         TypeNode? castTypeNode = null; 
         if (op == UnaryOperator.UnaryOperators.Cast) 
         {
             castTypeNode = await VisitorFactory.GetVisitorFor<TypeNode>(parser.context)!.VisitAsync(parser);
-            if (castTypeNode == null || parser.tokens.Current.Kind != SyntaxKind.CloseBracketToken) 
-            {
-                await parser.diagnostics.ReportUnsuitableSyntaxToken(parser.tokens.Current.Metadata.Line, 
-                    parser.tokens.Current, SyntaxKind.CloseBracketToken);
-                return null;
-            }
-            parser.tokens.Increment();
+
+            parser.ConsumeToken(SyntaxKind.CloseBracketToken);
         }
 
         ValueNode? node = await ((ValueNodeVisitor)VisitorFactory.GetVisitorFor<ValueNode>(parser.context)!).VisitAsync(
@@ -155,7 +142,7 @@ internal sealed class UnaryExpressionVisitor : IExpressionVisitor<UnaryExpressio
 
         if (resultType == null) 
         {
-            await parser.diagnostics.ReportTypeCheck(parser.tokens.Current.Metadata.Line);
+            await parser.diagnostics.ReportTypeCheck(parser.CurrentToken.Metadata.Line);
         }
         return castTypeNode == null 
         ? new UnaryExpression(prefixOp, node!, resultType!)

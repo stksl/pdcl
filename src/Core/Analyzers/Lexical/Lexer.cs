@@ -8,8 +8,6 @@ internal sealed partial class Lexer
 {
     private readonly SourceStream stream;
     private readonly PreprocContext context;
-    public ImmutableDictionary<int, ISyntaxTrivia> TriviasMap => triviasMap.ToImmutableDictionary();
-    private Dictionary<int, ISyntaxTrivia> triviasMap;
     private object _lock = new object();
 
     // endif directive position and length (in case inside a branched directive to skip #endif)
@@ -19,8 +17,6 @@ internal sealed partial class Lexer
     {
         stream = _stream;
         context = ctx;
-
-        triviasMap = new Dictionary<int, ISyntaxTrivia>();
     }
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> success(SyntaxKind kind, int startPos, string? raw, ulong metadata = 0)
         => new AnalyzerResult<SyntaxToken?, LexerStatusCode>(
@@ -51,9 +47,8 @@ internal sealed partial class Lexer
             case ' ':
             case '\n':
                 stream.handleLeadingTrivia(out ISyntaxTrivia? trivia, out int linesSkipped);
-                triviasMap[trivia!.Position.Position] = trivia;
                 currLine += linesSkipped;
-                return success(SyntaxKind.TriviaToken, trivia.Position.Position, null);
+                return success(SyntaxKind.TriviaToken, trivia!.Position.Position, null);
 
         }
         return lexOperators();
@@ -87,7 +82,6 @@ internal sealed partial class Lexer
                 if (stream.handleLeadingTrivia(out ISyntaxTrivia? trivia, out int linesSkipped))
                 {
                     currLine += linesSkipped;
-                    triviasMap[trivia!.Position.Position] = trivia;
                     return success(SyntaxKind.TriviaToken, trivia!.Position.Position, null);
                 }
                 else return success(SyntaxKind.SlashToken, stream.Position++, "/");
@@ -268,10 +262,11 @@ internal sealed partial class Lexer
 
             if (stream.Peek() == '.')
             {
+                sb.Append(stream.Advance());
+
                 if (numberMetadata == 1 << 3)
                     return new AnalyzerResult<SyntaxToken?, LexerStatusCode>(null, LexerStatusCode.OutOfLiteralRange);
 
-                sb.Append(stream.Advance());
                 numberMetadata |= 1 << 3;
                 numberMetadata ^= 0b1;
             }

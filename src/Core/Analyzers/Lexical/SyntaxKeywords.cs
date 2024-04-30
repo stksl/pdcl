@@ -24,5 +24,12 @@ internal sealed partial class Lexer
             new KeyValuePair<string, SyntaxKind>("explicit", SyntaxKind.ExplicitOperatorToken),            
             new KeyValuePair<string, SyntaxKind>("false", SyntaxKind.FalseToken),
             new KeyValuePair<string, SyntaxKind>("true", SyntaxKind.TrueToken),
+
+            new KeyValuePair<string, SyntaxKind>("public", SyntaxKind.PublicToken),
+            new KeyValuePair<string, SyntaxKind>("private", SyntaxKind.PrivateToken),
+            new KeyValuePair<string, SyntaxKind>("family", SyntaxKind.FamilyToken),
+            new KeyValuePair<string, SyntaxKind>("assembly", SyntaxKind.AssemblyToken),
+            new KeyValuePair<string, SyntaxKind>("static", SyntaxKind.StaticToken),
+
        });
 }

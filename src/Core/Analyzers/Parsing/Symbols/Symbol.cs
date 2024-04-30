@@ -53,5 +53,6 @@ public enum SymbolType : int
     Function,
     TypeDefinition,
     Field,
+    Argument,
     // todo
 }

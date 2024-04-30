@@ -94,10 +94,9 @@ public static class TypeEquality
         }
         public static bool ImplicitTypeCheck(PrimitiveTypeNode from, PrimitiveTypeNode into)
         {
-            if (from.Type == into.Type) return true;
+            if (from.Type == into.Type || into.Type == PrimitiveTypeNode.PrimitiveTypes.String) return true;
 
-            if (from.Type == PrimitiveTypeNode.PrimitiveTypes.String 
-            || into.Type == PrimitiveTypeNode.PrimitiveTypes.String) 
+            if (from.Type == PrimitiveTypeNode.PrimitiveTypes.String) 
             {
                 return false;
             }
@@ -118,7 +117,7 @@ public static class TypeEquality
             const PrimitiveTypeNode.PrimitiveTypes mask = 
                 PrimitiveTypeNode.PrimitiveTypes.String | PrimitiveTypeNode.PrimitiveTypes.Bool;
 
-            return !mask.HasFlag(from.Type) && !mask.HasFlag(into.Type);
+            return !mask.HasFlag(from.Type) && into.Type != PrimitiveTypeNode.PrimitiveTypes.Bool;
         }
         /// <summary>
         /// <paramref name="other"/> is either left or right
@@ -131,14 +130,15 @@ public static class TypeEquality
         {
             PrimitiveTypeNode? res = 
                 ImplicitTypeCheck(type, other) ? other : null;
+
+            const PrimitiveTypeNode.PrimitiveTypes mask = PrimitiveTypeNode.PrimitiveTypes.String | 
+                PrimitiveTypeNode.PrimitiveTypes.Float64 | 
+                PrimitiveTypeNode.PrimitiveTypes.Float32;
+
             switch (op)
             {
                 case BinaryOperator.BinaryOperators.BitwiseShiftLeft:
                 case BinaryOperator.BinaryOperators.BitwiseShiftRight:
-                    const PrimitiveTypeNode.PrimitiveTypes mask = 
-                        PrimitiveTypeNode.PrimitiveTypes.String | 
-                        PrimitiveTypeNode.PrimitiveTypes.Float64 | 
-                        PrimitiveTypeNode.PrimitiveTypes.Float32;
                     
                     bool isLong = type.Type == PrimitiveTypeNode.PrimitiveTypes.Int64;
                     bool isULong = type.Type == PrimitiveTypeNode.PrimitiveTypes.UInt64;
@@ -150,7 +150,14 @@ public static class TypeEquality
                     return isULong ? new PrimitiveTypeNode(PrimitiveTypeNode.PrimitiveTypes.UInt64) : 
                         (isLong ? new PrimitiveTypeNode(PrimitiveTypeNode.PrimitiveTypes.Int64) 
                         : new PrimitiveTypeNode(PrimitiveTypeNode.PrimitiveTypes.Int32));
-
+                case BinaryOperator.BinaryOperators.BitwiseOr:
+                case BinaryOperator.BinaryOperators.BitwiseAnd:
+                case BinaryOperator.BinaryOperators.BitwiseXor:
+                    if (mask.HasFlag(type.Type) || mask.HasFlag(other.Type)) 
+                    {
+                        return null;
+                    }
+                    goto default;
                 case BinaryOperator.BinaryOperators.IsEqual:
                 case BinaryOperator.BinaryOperators.IsNotEqual:
                 case BinaryOperator.BinaryOperators.ShortOr:

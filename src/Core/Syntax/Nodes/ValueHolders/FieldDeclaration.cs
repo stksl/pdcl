@@ -1,13 +1,11 @@
 
 namespace Pdcl.Core.Syntax;
 
-public sealed class FieldDeclaration : ValueHolderNode, IMemberNode 
+public sealed class FieldDeclaration : MemberNode 
 {
-    public MemberModifiers Modifiers {get; private set;}
-    public FieldDeclaration(string name, TypeNode type, MemberModifiers mods, bool hasGetter, bool hasSetter) 
-        : base(name, type, hasGetter, hasSetter)
+    public FieldDeclaration(string name, TypeNode type, AccessModifiers mods, bool hasGetter, bool hasSetter) 
+        : base(mods, name, type, hasGetter, hasSetter)
     {
-        Modifiers = mods;
     }
 
     public override IEnumerable<SyntaxNode> GetChildren()

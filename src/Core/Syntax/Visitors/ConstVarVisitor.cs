@@ -9,19 +9,13 @@ internal sealed class ConstVarVisitor : IVisitor<ConstVarNode>
     private ConstVarVisitor() {}
     public async Task<ConstVarNode?> VisitAsync(Parser parser) 
     {
-        if (parser.tokens.Current.Kind != SyntaxKind.ConstToken) 
-        {
-            await parser.diagnostics.ReportUnsuitableSyntaxToken(
-                parser.tokens.Current.Metadata.Line, parser.tokens.Current, SyntaxKind.ConstToken);
-
+        if (parser.IsConsumeMissed(SyntaxKind.ConstToken))
             return null;
-        }
-        parser.tokens.Increment();
 
         TypeNode? type = await VisitorFactory.GetVisitorFor<TypeNode>(parser.context)!.VisitAsync(parser);
 
         string? name = SyntaxHelper.ParseVariableName(parser);        
-        if (name != null) parser.tokens.Increment();
+        parser.ConsumeToken();
 
         // null as const value for now, later on parsing expressions make literal checks
         ConstVarNode curr = new ConstVarNode(name!, type!);
@@ -33,12 +27,10 @@ internal sealed class ConstVarVisitor : IVisitor<ConstVarNode>
 
         if (exp == null || !exp.Right.Type.ImplicitTypeCheck(type!)) 
         {
-            await parser.diagnostics.ReportTypeCheck(parser.tokens.Current.Metadata.Line);
+            await parser.diagnostics.ReportTypeCheck(parser.CurrentToken.Metadata.Line);
         }
-        if (parser.tokens.Current.Kind != SyntaxKind.SemicolonToken) 
-        {
-            await parser.diagnostics.ReportSemicolonExpected(parser.tokens.Current.Metadata.Line);
-        } else parser.tokens.Increment();
+
+        parser.ConsumeToken(SyntaxKind.SemicolonToken, throwOnEOF: false);
 
         return curr;
     }

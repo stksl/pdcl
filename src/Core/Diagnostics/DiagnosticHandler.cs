@@ -38,16 +38,12 @@ internal sealed class DiagnosticHandler : IDiagnosticHandler
     public Task ReportUnsuitableSyntaxToken(int line, SyntaxToken actual, SyntaxKind expected) 
     {
         return reportErrorAsync(new Error(
-            ErrorIdentifier.UnsuitableSyntaxToken, $"Expected {expected}, instead got {actual.Metadata.Raw}({actual.Kind})", line
+            ErrorIdentifier.UnsuitableSyntaxToken, $"Expected {expected}, instead got \'{actual.Metadata.Raw}\'({actual.Kind})", line
         ));
     }
     public Task ReportIncorrectNamespaceSyntax(int line, string namespaceName) 
     {
         return reportErrorAsync(new Error(ErrorIdentifier.IncorrectNamespaceSyntax, $"Incorrect namespace identifier syntax: {namespaceName}", line));
-    }
-    public Task ReportSemicolonExpected(int line) 
-    {
-        return reportErrorAsync(new Error(ErrorIdentifier.SemicolonExpected, "Semicolon expected", line));
     }
     public Task ReportUnknownSymbol(int line, string symbolName) 
     {
@@ -55,7 +51,7 @@ internal sealed class DiagnosticHandler : IDiagnosticHandler
     }
     public Task ReportAlreadyDefined(int line, string name) 
     {
-        return reportErrorAsync(new Error(ErrorIdentifier.AlreadyDefined, $"{name} has already been defined", line));
+        return reportErrorAsync(new Error(ErrorIdentifier.AlreadyDefined, $"\"{name}\" has already been defined", line));
     }
     public Task ReportUnkownOperandSyntax(int line, string operand) 
     {
@@ -72,6 +68,10 @@ internal sealed class DiagnosticHandler : IDiagnosticHandler
     public Task ReportTypeCheck(int line) 
     {
         return reportErrorAsync(new Error(ErrorIdentifier.TypeCheckFailure, $"Type check failure", line));
+    }
+    public Task ReportUnkownAccessMods(int line) 
+    {
+        return reportErrorAsync(new Error(ErrorIdentifier.UnkownAccessMods, $"Not a correct access modifier", line));
     }
     private async Task reportErrorAsync(Error err) 
     {

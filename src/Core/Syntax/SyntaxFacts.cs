@@ -30,7 +30,35 @@ internal static class SyntaxFacts
         }
         return false;
     }
-    
+    public static bool IsAccessModifier(SyntaxKind kind, SyntaxKind? additional, out AccessModifiers? mods) 
+    {
+        switch(kind) 
+        {
+            case SyntaxKind.PublicToken:
+                mods = AccessModifiers.Public;
+                return true;
+            case SyntaxKind.PrivateToken:
+                mods = AccessModifiers.Private;
+                if (additional.GetValueOrDefault() == SyntaxKind.FamilyToken) 
+                {
+                    mods |= AccessModifiers.Family;
+                }
+                return true;
+            case SyntaxKind.FamilyToken:
+                mods = AccessModifiers.Family;
+                if (additional.GetValueOrDefault() == SyntaxKind.AssemblyToken) { 
+                    mods |= AccessModifiers.Assembly;
+                }
+                return true;
+            case SyntaxKind.AssemblyToken:
+                mods = AccessModifiers.Assembly;
+                return true;
+
+            default:
+                mods = null;
+                return false;
+        }
+    }
     public static bool IsBinaryOperator(SyntaxKind kind, out BinaryOperator.BinaryOperators? op_)
     {
         op_ = null;

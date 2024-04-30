@@ -8,10 +8,10 @@ internal sealed class NamespaceVisitor : IVisitor<NamespaceNode>
 
     public async Task<NamespaceNode?> VisitAsync(Parser parser) 
     {
-        if (!SyntaxHelper.CheckTokens(parser, SyntaxKind.NamespaceToken, SyntaxKind.TextToken))
+        if (parser.IsConsumeMissed(SyntaxKind.NamespaceToken)) 
+        {
             return null;
-
-        parser.tokens.Increment();
+        }
 
         // all namespaces will start with '@' prefix as a unique identifier in the table tree
         string name = "@" + SyntaxHelper.ParseNamespaceName(parser);
@@ -21,17 +21,11 @@ internal sealed class NamespaceVisitor : IVisitor<NamespaceNode>
 
         NamespaceNode nsNode = new NamespaceNode(name);
 
-        if (!SyntaxHelper.CheckTokens(parser, SyntaxKind.OpenBraceToken)) 
-        {
-            await parser.diagnostics.ReportUnsuitableSyntaxToken(parser.tokens.Current.Metadata.Line,
-                parser.tokens.Current, SyntaxKind.OpenBraceToken);
-        }
-        else parser.tokens.Increment();
-
-        while (parser.tokens.Index < parser.tokens.Length) 
+        parser.ConsumeToken(SyntaxKind.OpenBraceToken);
+        while (!parser.IsEOF) 
         {
             SyntaxNode? node = null;
-            switch(parser.tokens.Current.Kind) 
+            switch(parser.CurrentToken.Kind) 
             {
                 // global constant variable declaration
                 case SyntaxKind.ConstToken:
@@ -43,25 +37,25 @@ internal sealed class NamespaceVisitor : IVisitor<NamespaceNode>
                     }
                     node = constVar;
                     break;
-                // supposably a function declaration
                 case SyntaxKind.TextToken:
+                        // supposedly a function declaration
                     break;
+                case SyntaxKind.CloseBraceToken:
+                    parser.ConsumeToken(throwOnEOF: false);
+                    goto _escape;
                 case SyntaxKind.StructToken:
                     break;
                 default:
-                    await parser.diagnostics.ReportUnsuitableSyntaxToken(parser.tokens.Current.Metadata.Line, 
-                        parser.tokens.Current, SyntaxKind.TextToken);
+                    await parser.diagnostics.ReportUnsuitableSyntaxToken(parser.CurrentToken.Metadata.Line, 
+                        parser.CurrentToken, SyntaxKind.TextToken);
                     break;
             }
 
             if (node != null) nsNode.addChild(node);
         }
 
-        if (!SyntaxHelper.CheckTokens(parser, SyntaxKind.CloseBraceToken)) 
-        {
-            await parser.diagnostics.ReportUnsuitableSyntaxToken(parser.tokens.Current.Metadata.Line,
-                parser.tokens.Current, SyntaxKind.CloseBraceToken);
-        } else parser.tokens.Increment();
+    _escape:
+
         return nsNode;
     }
 }

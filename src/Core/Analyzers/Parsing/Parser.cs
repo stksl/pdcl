@@ -3,6 +3,8 @@ using Pdcl.Core.Diagnostics;
 using Pdcl.Core.Syntax;
 using System.Collections;
 using Pdcl.Core.Assembly;
+using System.Runtime.CompilerServices;
+using System.Net.Security;
 namespace Pdcl.Core;
 
 /// <summary>
@@ -10,16 +12,19 @@ namespace Pdcl.Core;
 /// </summary>
 internal sealed partial class Parser : IDisposable
 {
-    public readonly TokenCollection tokens;
     public readonly DiagnosticHandler diagnostics;
     public readonly CompilationContext context;
     public readonly AssemblyInfo AssemblyInfo; 
+    private readonly Lexer lexer;
+    public readonly SyntaxTree tree;
+
     public volatile string currPath = "/"; 
 
-    public readonly SyntaxTree tree;
-    public Parser(ImmutableList<SyntaxToken> _tokens, DiagnosticHandler _handler, AssemblyInfo assembly)
+    public SyntaxToken CurrentToken {get; private set;}
+    public bool IsEOF {get; private set;}
+    public Parser(Lexer _lexer, DiagnosticHandler _handler, AssemblyInfo assembly)
     {
-        tokens = new TokenCollection(_tokens);
+        lexer = _lexer;
 
         diagnostics = _handler;
         diagnostics.OnDiagnosticReported += onDiagnosticAsync;
@@ -31,14 +36,61 @@ internal sealed partial class Parser : IDisposable
         tree = new SyntaxTree();
     }
 
+    /// <summary>
+    /// Consumes one token and returns it skipping trivia
+    /// </summary>
+    /// <param name="throw_"></param>
+    /// <returns></returns>
+    /// <exception cref="EndOfStreamException"></exception>
+    public SyntaxToken ConsumeToken(bool throwOnEOF = true)
+    {
+        var result = lexer.Lex();
+
+        if (!result.IsFailed) {
+            if (result.Value!.Value.Kind == SyntaxKind.TriviaToken) 
+                return ConsumeToken();
+            CurrentToken = result.Value!.Value;
+        }
+
+        if (result.Status == Lexer.LexerStatusCode.EOF) { 
+            IsEOF = true;
+            if (throwOnEOF) 
+                throw new EndOfStreamException();
+        }
+        
+        return result.Value.GetValueOrDefault();
+    }
+    /// <summary>
+    /// Checks for <paramref name="kind"/> equality and consumes, otherwise missing token
+    /// </summary>
+    /// <param name="kind"></param>
+    /// <returns></returns>
+    public SyntaxToken ConsumeToken(SyntaxKind kind, bool throwOnEOF = true) 
+    {
+        if (CurrentToken.Kind != kind) 
+        {
+            // just reporting
+            diagnostics.ReportUnsuitableSyntaxToken(CurrentToken.Metadata.Line, actual: CurrentToken, expected: kind)
+            .Wait();
+            return new SyntaxToken(SyntaxKind.MissingToken, ConsumeToken(throwOnEOF).Metadata);
+        }
+        return ConsumeToken(throwOnEOF);
+    }
+    public bool IsConsumeMissed(SyntaxKind kind) 
+    {
+        return ConsumeToken(kind).Kind == SyntaxKind.MissingToken;
+    }
+    public IEnumerable<SyntaxToken> ConsumeTokens(params SyntaxKind[] kinds) 
+    {
+        foreach(SyntaxKind kind in kinds) 
+        {
+            yield return ConsumeToken(kind);
+        }
+    }
     private async Task onDiagnosticAsync(IDiagnostic diagnostic)
     {
         if (diagnostic is Error error)
             await ErrorRecoverer.RecoverAsync(error, context);
-    }
-    public void Dispose()
-    {
-        diagnostics.OnDiagnosticReported -= onDiagnosticAsync;
     }
     public Task ParseAsync()
         => VisitorFactory.GetVisitorFor<SyntaxTree.ApplicationContextNode>(context)!.VisitAsync(this);
@@ -46,33 +98,9 @@ internal sealed partial class Parser : IDisposable
     {
         return AssemblyInfo.TableTree.GetNode(currPath)!;
     }
-}
 
-public sealed class TokenCollection : IEnumerable<SyntaxToken> 
-{
-    private readonly ImmutableList<SyntaxToken> tokens;
-    public int Index => index;
-    private volatile int index;
-    public SyntaxToken Current => tokens[index];
-    public int Length => tokens.Count;
-
-    public TokenCollection(ImmutableList<SyntaxToken> tokens_)
+    public void Dispose()
     {
-        tokens = tokens_;
+        /* diagnostics.OnDiagnosticReported -= onDiagnosticAsync; */
     }
-    public bool SetOffset(int localOffset) => (index += localOffset) >= tokens.Count || index < 0;
-    public bool Increment() => SetOffset(1);
-
-    public SyntaxToken? Check(int localOffset) 
-    {
-        int prev = index;
-        SyntaxToken? token = SetOffset(localOffset) ? tokens[index] : null;
-        index = prev;
-        return token;
-    }
-    public IEnumerator<SyntaxToken> GetEnumerator() 
-    {
-        return tokens.GetEnumerator();
-    }
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

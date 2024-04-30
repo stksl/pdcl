@@ -5,42 +5,21 @@ namespace Pdcl.Core.Syntax;
 
 internal static class SyntaxHelper
 {
-    /// <summary>
-    /// Checks current token in the stream and nexts for <paramref name="kinds"/> equality, reports an error if needed
-    /// </summary>
-    /// <param name="parser"></param>
-    /// <param name="kinds"></param>
-    /// <returns></returns>
-    public static bool CheckTokens(Parser parser, params SyntaxKind[] kinds)
-    {
-        for (int i = 0; i < kinds.Length; i++, parser.tokens.Increment())
-        {
-            if (parser.tokens.Current.Kind != kinds[i])
-            {
-                parser.diagnostics.ReportUnsuitableSyntaxToken(parser.tokens.Current.Metadata.Line,
-                    parser.tokens.Current, kinds[i]);
-                return false;
-            }
-        }
-        parser.tokens.SetOffset(-kinds.Length);
-        return true;
-    }
     public static string ParseNamespaceName(Parser parser)
     {
         StringBuilder sb = new StringBuilder();
-        while (CheckTokens(parser, SyntaxKind.TextToken))
+        while (parser.CurrentToken.Kind == SyntaxKind.TextToken)
         {
-            sb.Append(parser.tokens.Current.Metadata.Raw);
-            parser.tokens.Increment();
-            if (parser.tokens.Current.Kind == SyntaxKind.DotToken)
+            sb.Append(parser.CurrentToken.Metadata.Raw);
+            if (parser.ConsumeToken().Kind == SyntaxKind.DotToken)
             {
                 sb.Append('.');
-                parser.tokens.Increment();
+                parser.ConsumeToken();
             }
         }
-        if (parser.tokens.Current.Kind == SyntaxKind.DotToken)
+        if (parser.CurrentToken.Kind == SyntaxKind.DotToken)
         {
-            parser.diagnostics.ReportIncorrectNamespaceSyntax(parser.tokens.Current.Metadata.Line,
+            parser.diagnostics.ReportIncorrectNamespaceSyntax(parser.CurrentToken.Metadata.Line,
                 sb.ToString() + "."
             );
         }
@@ -48,19 +27,19 @@ internal static class SyntaxHelper
     }
     public static string? ParseVariableName(Parser parser)
     {
-        if (parser.tokens.Current.Kind != SyntaxKind.TextToken)
+        if (parser.CurrentToken.Kind != SyntaxKind.TextToken)
         {
             parser.diagnostics.ReportUnsuitableSyntaxToken(
-                parser.tokens.Current.Metadata.Line, parser.tokens.Current, SyntaxKind.TextToken);
+                parser.CurrentToken.Metadata.Line, parser.CurrentToken, SyntaxKind.TextToken);
             return null;
         }
-        if (parser.GetCurrentTableNode().Table!.GetSymbol(parser.tokens.Current.Metadata.Raw, SymbolType.Variable).HasValue)
+        if (parser.GetCurrentTableNode().Table!.GetSymbol(parser.CurrentToken.Metadata.Raw, SymbolType.Variable).HasValue)
         {
             parser.diagnostics.ReportAlreadyDefined(
-                parser.tokens.Current.Metadata.Line, parser.tokens.Current.Metadata.Raw);
+                parser.CurrentToken.Metadata.Line, parser.CurrentToken.Metadata.Raw);
             return null;
         }
 
-        return parser.tokens.Current.Metadata.Raw;
+        return parser.CurrentToken.Metadata.Raw;
     }
 }

@@ -4,6 +4,7 @@ namespace Pdcl.Core.Syntax;
 public enum SyntaxKind : int 
 {
     BadToken = -1,
+    MissingToken, // parsing phase
 
     PlusToken, // +
     MinusToken, // -
@@ -54,6 +55,8 @@ public enum SyntaxKind : int
     TextToken, // text123_
     NumberToken, // 123, 1.23, 0xff, 0b00101
     MacroSubstitutedToken,
+
+
     // keywords
     UseToken, // use
     WhileLoopToken, // while
@@ -72,4 +75,11 @@ public enum SyntaxKind : int
     ExplicitOperatorToken, // explicit    
     TrueToken, // true
     FalseToken, // false
+
+    // access modifiers
+    PublicToken,
+    PrivateToken,
+    AssemblyToken,
+    FamilyToken,
+    StaticToken
 }

@@ -10,20 +10,21 @@ internal sealed class ApplicationContextVisitor : IVisitor<SyntaxTree.Applicatio
     public async Task<SyntaxTree.ApplicationContextNode?> VisitAsync(Parser parser) 
     {
         // getting the root as an app context, directly changing it
-        var root = (parser.tree!.Root as SyntaxTree.ApplicationContextNode)!;
+        SyntaxTree.ApplicationContextNode root = (SyntaxTree.ApplicationContextNode)parser.tree!.Root;
 
         // checks for all possible top-level nodes, visiting them 
         
-        while (parser.tokens.Current.Kind == SyntaxKind.UseToken) 
+        parser.ConsumeToken(); // consuming initial token
+        while (parser.CurrentToken.Kind == SyntaxKind.UseToken) 
         {
             UseNode? use = await VisitorFactory.GetVisitorFor<UseNode>(parser.context)!.VisitAsync(parser);
             if (use != null) root.addChild(use);
         }
 
-        while (parser.tokens.Index < parser.tokens.Length) 
+        while (!parser.IsEOF) 
         {
             SyntaxNode? node = null;
-            switch(parser.tokens.Current.Kind) 
+            switch(parser.CurrentToken.Kind) 
             {
                 // global constant variable declaration
                 case SyntaxKind.ConstToken:
@@ -44,8 +45,8 @@ internal sealed class ApplicationContextVisitor : IVisitor<SyntaxTree.Applicatio
                 case SyntaxKind.StructToken:
                     break;
                 default:
-                    await parser.diagnostics.ReportUnsuitableSyntaxToken(parser.tokens.Current.Metadata.Line, 
-                        parser.tokens.Current, SyntaxKind.TextToken);
+                    await parser.diagnostics.ReportUnsuitableSyntaxToken(parser.CurrentToken.Metadata.Line, 
+                        parser.CurrentToken, SyntaxKind.TextToken);
                     break;
             }
 

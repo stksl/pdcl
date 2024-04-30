@@ -1,4 +1,4 @@
 namespace testns 
 {
-    const bool cnst = [uint32](2L + (1.5f % -22.3 / 1) ^ 2); 
+    const uint32 cnst = [uint32](2L + (1.5f % -22.3 / 1) - 2) 
 }

@@ -1,6 +1,6 @@
 Common Type System:
 
-The language is fully translated into CIL and thus CLS-compliant 
+The language is fully translated into CIL and thus is CLS-compliant 
 ```c
 boolean - bool
 
