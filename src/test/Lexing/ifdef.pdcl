@@ -1,9 +1,16 @@
 void main() 
 {
-    #ifndef notDefined
+#ifdef notDefined // has to be skipped
     int32 i;
-    #endif
-    #ifdef notDefined // has to be skipped
-    int64 l = 100;
-    #endif
+#endif
+
+#ifndef notDefined
+    int64 l;
+
+        #ifndef ignored_
+    int32 i1 = 1;
+        #endif
+    
+    string str;
+#endif
 }

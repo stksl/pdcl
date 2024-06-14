@@ -1,10 +1,10 @@
 namespace Pdcl.Core.Syntax;
 
-public sealed class OperatorOverload : FunctionMemberDeclaration 
+public sealed class OperatorOverload : FunctionDeclaration 
 {
     public readonly OperatorNode Operator;
-    public OperatorOverload(OperatorNode operator_, FunctionSignature sig, FunctionBody body, MemberModifiers mods, string tableTreePath) 
-        : base(sig, body, mods, tableTreePath)
+    public OperatorOverload(OperatorNode operator_, FunctionSignature sig, FunctionBody body, AccessModifiers mods, string tableTreePath) 
+        : base(sig, body, tableTreePath)
     {
 
         Operator = operator_;

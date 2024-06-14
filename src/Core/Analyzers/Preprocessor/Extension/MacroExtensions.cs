@@ -5,7 +5,7 @@ namespace Pdcl.Core.Preproc;
 public static class MacroExtension
 {
     /// <summary>
-    /// Substitutes argument occcurencies to <paramref name="arg"/>'s value
+    /// Substitutes argument occcurencies to <paramref name="arg"/> value
     /// </summary>
     /// <param name="arg"></param>
     /// <param name="index"></param>

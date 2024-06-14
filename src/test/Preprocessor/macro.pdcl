@@ -10,5 +10,7 @@
 
 void main() 
 {
-  #def NonFirstT 3 // non-first token
+  #def NonFirstT [
+    
+    3] // non-first token
 }

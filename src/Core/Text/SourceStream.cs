@@ -2,9 +2,9 @@ using System.Text;
 using Pdcl.Core.Syntax;
 
 namespace Pdcl.Core.Text;
-public interface ISourceStream 
+public interface ISourceStream
 {
-    int Position {get;}
+    int Position { get; }
     char Advance();
     char Peek();
 }
@@ -13,45 +13,46 @@ public interface ISourceStream
 /// </summary>
 public sealed class SourceStream : ISourceStream, IDisposable
 {
-    private Stream _stream;
+    internal Stream _stream;
+    public int line { get; internal set; }
     public SourceStream(string path)
     {
-        if (!path.EndsWith(".pdcl")) 
+        if (!path.EndsWith(".pdcl"))
             throw new ArgumentException("Not a .pdcl file");
         _stream = new FileStream(path, FileMode.Open, FileAccess.Read);
-        
+
     }
     /// <summary>
     /// Saves stream in-memory instead of opening a file
     /// </summary>
     /// <param name="memoryString"></param>
-    internal SourceStream(char[] memoryString) 
+    internal SourceStream(char[] memoryString)
     {
         byte[] bytes = Encoding.UTF8.GetBytes(memoryString);
         _stream = new MemoryStream(bytes, 0, bytes.Length);
     }
-    public int Position 
+    public int Position
     {
         get => (int)_stream.Position;
         set => _stream.Position = value;
     }
     public bool EOF => Position >= _stream.Length;
-    public char Peek() 
+    public char Peek()
     {
         int pos = Position;
         char c = (char)_stream.ReadByte();
         Position = pos;
         return c;
     }
-    public char Advance() 
+    public char Advance()
     {
         return (char)_stream.ReadByte();
     }
-    public string Advance(int length, out int bytesRead) 
+    public string Advance(int length, out int bytesRead)
     {
         byte[] buf = new byte[length];
         int read = _stream.Read(buf, 0, length);
-        bytesRead = read; 
+        bytesRead = read;
         return Encoding.ASCII.GetString(buf);
     }
     private int handleComment(bool isSingleLine)
@@ -60,6 +61,7 @@ public sealed class SourceStream : ISourceStream, IDisposable
         if (isSingleLine)
         {
             while (Advance() != '\n') len++;
+            line++;
         }
         else
         {
@@ -68,6 +70,8 @@ public sealed class SourceStream : ISourceStream, IDisposable
             {
                 len++;
                 prev = Advance().ToString();
+                if (prev == "\n")
+                    line++;
             }
             Position++;
         }
@@ -78,44 +82,42 @@ public sealed class SourceStream : ISourceStream, IDisposable
     /// </summary>
     /// <param name="otherTrivia"></param>
     /// <returns></returns>
-    public bool handleLeadingTrivia(out ISyntaxTrivia? syntaxTrivia, out int linesSkipped, bool handleNewline = true)
+    public bool handleLeadingTrivia(bool handleNewline = true)
     {
-        int pos = Position;
-        linesSkipped = 0;
         bool res = false;
-        while ("/\n ".Contains(Peek()))
+    _loop:
+        switch (Peek())
         {
-            switch(Peek()) 
-            {
-                case '/':
-                    Position++;
-                    if (Peek() == '/')
-                    {
-                        Position--;
-                        handleComment(isSingleLine: true);
-                    }
-                    else if (Peek() == '*')
-                    {
-                        Position--;
-                        handleComment(isSingleLine: false);
-                    }
-                    else { Position--; goto _ret; } // slash-non-comment was skipped so we're restoring
-                    break;
-                case ' ':
-                    Position++;
-                    break;
-                case '\n':
-                    if (!handleNewline) goto _ret;
-                    linesSkipped++;
-                    Position++;
-                    break;
-                default: goto _ret;
-            }
-            res = true;
+            case '/':
+                Position++;
+                if (Peek() == '/')
+                {
+                    Position--;
+                    handleComment(isSingleLine: true);
+                }
+                else if (Peek() == '*')
+                {
+                    Position--;
+                    handleComment(isSingleLine: false);
+                }
+                else { Position--; goto _ret; } // slash-non-comment was skipped so we're restoring
+                res = true;
+                break;
+            case ' ':
+                Position++;
+                res = true;
+                break;
+            case '\n':
+                if (!handleNewline) goto _ret;
+                line++;
+                Position++;
+                res = true;
+                break;
+            default: goto _ret;
         }
-        _ret:
-        syntaxTrivia = res ? new SyntaxTrivia(new TextPosition(pos, Position - pos)) : null;
+        goto _loop;
+    _ret:
         return res;
     }
     public void Dispose() => _stream.Dispose();
-} 
+}

@@ -9,7 +9,7 @@ internal sealed partial class Preprocessor
         EOF,
         UnknownDeclaration,
         NonExistingDirective,
-
+        UnmatchingToken,
         // macros
         NonFirstToken,
         AlreadyDefined,

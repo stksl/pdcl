@@ -105,21 +105,35 @@ KEYWORDS:
 
 FUNCTION DECLARATION:
 
-. Function declaration consists of a function signature and a function body.
-. 
+.     Function declaration consists of a modifier, a function signature and a function body.
+.          
+.   [modifier] [signature] [body]
+.
 . -int32 funcName(int32 arg1, nint arg2) {}
-. 
+.    modifiers:
+.       private - accessible within the namespace
+.       assembly - accessible within the assembly
+.
 . Operator overloading:
 .. [ret_type] operator [token] ([args_list]) [body]
 .. where [token] is an operator token to overload (for binary 2 args, for unary - 1) 
+..    -int32 operator +(myType l, myType r) ...
 
 STRUCTURE DECLARATION:
 
-. Structure is a value type that will be stored locally on the stack, to allocate it on the heap use build-in functions.
 . Structure members - fields, functions and nested structures.
-. Unlike in most procedure languages, members are initialized with access modifiers. 
+. Unlike in most procedure languages, members are declared with access modifiers. 
 . -struct name {}
-
+.
 . FIELDS:
-. [modifier] [type] [name] [accessors]
+. [modifier] [static] [type] [name] [accessors]
 . 
+. FUNCTIONS:
+. [modifier] [static] [ret_type] [signature] [body]
+. 
+. NESTED STRUCTS:
+. [modifier] + main structure declaration
+.
+. Where [modifier] is any of: private/assembly (none for public)
+. Where [static] is a static modifier
+. Where [accessors] is a mask of: [modifier] get/set

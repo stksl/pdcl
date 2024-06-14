@@ -53,6 +53,6 @@ internal sealed class FunctionDeclarationVisitor : IVisitor<FunctionDeclaration>
 
     private async Task<FunctionBody?> visitBodyAsync(Parser parser) 
     {
-        
+        return null!;
     }
 }

@@ -1,4 +1,10 @@
-#def macro struct
+#def macro 
+[
+    int32 a = 10; 
+]
 
 
-void macro123() macro
+void macro123() 
+{
+    macro 
+}

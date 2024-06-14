@@ -48,13 +48,8 @@ public enum SyntaxKind : int
     LeftShiftToken, // <<
     RightShiftToken, // >>
 
-
-    // trivia
-    TriviaToken, // could be a comment, a whitespace or a newline
-
-    TextToken, // text123_
+    TextToken, // _text123_
     NumberToken, // 123, 1.23, 0xff, 0b00101
-    MacroSubstitutedToken,
 
 
     // keywords

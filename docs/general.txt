@@ -1,0 +1,4 @@
+The "pdcl" language is in-fact a non-OOP language which is translated into MSIL code. 
+Meaning a language with no direct OOP support will be translated into an object-oriented language.
+
+IL code can be inlined within method using 'il_inline' instruction.

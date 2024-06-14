@@ -21,10 +21,11 @@ public sealed class TypeDeclarationNode : SyntaxNode, ISymboled
 
     public IEnumerable<OperatorOverload> GetOperatorOverloads() 
     {
-        foreach(var func in Functions) 
+        yield return null!;
+        /* foreach(var func in Functions) 
         {
             if (func is OperatorOverload func_op) yield return func_op;
-        }
+        } */
     }
     public override IEnumerable<SyntaxNode> GetChildren()
     {

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using Pdcl.Core.Preproc;
 using Pdcl.Core.Syntax;
@@ -6,23 +7,32 @@ using Pdcl.Core.Text;
 namespace Pdcl.Core;
 internal sealed partial class Lexer
 {
-    private readonly SourceStream stream;
-    private readonly PreprocContext context;
+    public enum LexerMode 
+    {
+        Default = 0, // default lexing mode, using a fileStream
+        MacroLexing = 1, // lexing macro substitution
+    }
+    public LexerMode Mode {get; private set;}
+    private SourceStream stream;
+    private readonly Preprocessor preproc;
+    private Stack<(int, BranchedDirective)> parentDirectives;
+    private IDirective? currDirective;
+    private int currChildIndex;
+    private string? macroSubstitution; // lexer switches on lexing this field when not null (instead of stream)
     private object _lock = new object();
 
-    // endif directive position and length (in case inside a branched directive to skip #endif)
-    private TextPosition endifPos;
-    public int currLine { get; private set; }
-    public Lexer(SourceStream _stream, PreprocContext ctx)
+    public Lexer(SourceStream _stream)
     {
         stream = _stream;
-        context = ctx;
+        preproc = new Preprocessor(_stream);
+
+        parentDirectives = new Stack<(int, BranchedDirective)>();
     }
-    private IAnalyzerResult<SyntaxToken?, LexerStatusCode> success(SyntaxKind kind, int startPos, string? raw, ulong metadata = 0)
+    private IAnalyzerResult<SyntaxToken?, LexerStatusCode> success(SyntaxKind kind, int startPos, string raw, ulong metadata = 0)
         => new AnalyzerResult<SyntaxToken?, LexerStatusCode>(
             new SyntaxToken(
                 kind,
-                new LexemeMetadata(new TextPosition(startPos, stream.Position - startPos), currLine, raw!, metadata)),
+                new LexemeMetadata(new TextPosition(startPos, stream.Position - startPos), stream.line, raw, metadata)),
             LexerStatusCode.Success);
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> EOF() =>
         new AnalyzerResult<SyntaxToken?, LexerStatusCode>(null, LexerStatusCode.EOF);
@@ -39,19 +49,37 @@ internal sealed partial class Lexer
     */
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> lex()
     {
-        if (stream.EOF) return EOF();
+        stream.handleLeadingTrivia();
 
-        // checking basic trivia (whitespace or newline)
-        switch (stream.Peek())
+        if (stream.EOF) 
         {
-            case ' ':
-            case '\n':
-                stream.handleLeadingTrivia(out ISyntaxTrivia? trivia, out int linesSkipped);
-                currLine += linesSkipped;
-                return success(SyntaxKind.TriviaToken, trivia!.Position.Position, null);
-
+            if (Mode == LexerMode.MacroLexing) {
+                switchMode(LexerMode.Default);
+                stream.handleLeadingTrivia();
+            }
+            else return EOF();
         }
-        return lexOperators();
+
+        int directivePosition = currDirective != null ? currDirective is BranchedDirective branched ? 
+                branched.BodyPosition.Position + branched.BodyPosition.Length : 
+                currDirective.Position.Position + currDirective.Position.Length : 0; 
+
+
+        if (directivePosition != 0 && stream.Position >= directivePosition) 
+        {
+            if (currDirective is BranchedDirective br)
+                stream.Position = br.Children[^1].Position.Position + br.Children[^1].Position.Length;
+
+            if (parentDirectives.TryPop(out var parentDirective)) 
+            {
+                currDirective = parentDirective.Item2;
+                currChildIndex = parentDirective.Item1;
+            } else { currDirective = null; currChildIndex = 0; }
+        }
+
+        var result = lexOperators();
+        preproc.firstTokenSeen = true;
+        return result;
     }
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> lexOperators()
     {
@@ -79,12 +107,10 @@ internal sealed partial class Lexer
                 return success(SyntaxKind.StarToken, stream.Position++, "*");
             case '/':
                 // checking whether it's a comment or not
-                if (stream.handleLeadingTrivia(out ISyntaxTrivia? trivia, out int linesSkipped))
-                {
-                    currLine += linesSkipped;
-                    return success(SyntaxKind.TriviaToken, trivia!.Position.Position, null);
-                }
-                else return success(SyntaxKind.SlashToken, stream.Position++, "/");
+                if (stream.handleLeadingTrivia())
+                    return lex();
+
+                return success(SyntaxKind.SlashToken, stream.Position++, "/");
             case '%':
                 return success(SyntaxKind.PercentToken, stream.Position++, "%");
             case '^':
@@ -163,18 +189,12 @@ internal sealed partial class Lexer
                 return success(SyntaxKind.OpenBraceToken, stream.Position++, "{");
             case '}':
                 return success(SyntaxKind.CloseBraceToken, stream.Position++, "}");
-            case '#':
-                if (context.Directives.TryGetValue(stream.Position, out IDirective? directive))
-                {
-                    handleDirective(directive);
-                    return lex();
-                }
-                else if (endifPos.Position == stream.Position)
-                {
-                    stream.Position += endifPos.Length;
-                    return lex();
-                }
-                return success(SyntaxKind.HashToken, stream.Position++, "#");
+            case '#' when Mode == LexerMode.Default: 
+                
+                if (!handleDirective())
+                    return new AnalyzerResult<SyntaxToken?, LexerStatusCode>(null, LexerStatusCode.PreprocError);
+
+                return lex();
             case '\\':
                 return success(SyntaxKind.BackslashToken, stream.Position++, "\\");
             case ';':
@@ -197,12 +217,6 @@ internal sealed partial class Lexer
             return lexUnknownToken();
         }
 
-        if (context.NonDefMacros.TryGetValue(stream.Position, out NonDefinedMacro? nonDefMacro))
-        {
-            stream.Position += nonDefMacro.Position.Length;
-            return success(SyntaxKind.MacroSubstitutedToken, stream.Position, nonDefMacro.Substitution);
-        }
-
         StringBuilder rawText = new StringBuilder();
         while (char.IsLetterOrDigit(stream.Peek()) || stream.Peek() == '_')
         {
@@ -211,7 +225,13 @@ internal sealed partial class Lexer
         string raw = rawText.ToString();
         if (SyntaxKeywords.ContainsKey(raw))
             return lexKeywords(raw);
+        else if (preproc.ContainsMacro(raw, out Macro? macro)) 
+        {
+            macroSubstitution = preproc.TryParseMacro(macro!);
 
+            switchMode(LexerMode.MacroLexing);
+            return lex();
+        }
 
         return success(SyntaxKind.TextToken, stream.Position - raw.Length, raw);
     }
@@ -232,8 +252,7 @@ internal sealed partial class Lexer
             {
                 if (stream.EOF) return EOF();
                 sb.Append(res.Value!.Value.Metadata.Raw);
-                stream.handleLeadingTrivia(out _, out int linesSkipped);
-                currLine += linesSkipped;
+                stream.handleLeadingTrivia();
                 res = lexText();
             }
             sb.Append(res.Value!.Value.Metadata.Raw);
@@ -245,17 +264,7 @@ internal sealed partial class Lexer
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> lexNumber()
     {
         StringBuilder sb = new StringBuilder();
-        /*
-            1 => integer
-            1 << 1 => long literal (l/L)
-
-            1 << 2 => float32 literal (f/F)
-            1 << 3 => float64
-
-            1 << 4 => unsigned
-            
-        */
-        ulong numberMetadata = 0b1;
+        NumberMetadata numberMetadata = NumberMetadata.Integer;
         while (char.IsDigit(stream.Peek()))
         {
             sb.Append(stream.Advance());
@@ -264,40 +273,37 @@ internal sealed partial class Lexer
             {
                 sb.Append(stream.Advance());
 
-                if (numberMetadata == 1 << 3)
+                if (numberMetadata.HasFlag(NumberMetadata.Float64Literal))
                     return new AnalyzerResult<SyntaxToken?, LexerStatusCode>(null, LexerStatusCode.OutOfLiteralRange);
 
-                numberMetadata |= 1 << 3;
-                numberMetadata ^= 0b1;
+                numberMetadata |= NumberMetadata.Float64Literal;
+                numberMetadata ^= NumberMetadata.Integer;
             }
         }
 
-        int suffixSize = 0;
-        if ("fF".Contains(stream.Peek()))
+        int suffixSize = 1;
+        switch(stream.Peek().ToString().ToLower()) 
         {
-            numberMetadata |= 1 << 2;
-            stream.Position++;
-            numberMetadata ^= 1 << 3;
-            suffixSize++;
-        }
-        else
-        {
-            if ("uU".Contains(stream.Peek()))
-            {
-                numberMetadata |= 1 << 4;
+            case "f":
+                numberMetadata |= NumberMetadata.Float32Literal;
+                numberMetadata &= ~NumberMetadata.Float64Literal;
                 stream.Position++;
-                suffixSize++;
-            }
-            if ("lL".Contains(stream.Peek()))
-            {
-                numberMetadata |= 1 << 1;
+                break;
+            case "u":
+                numberMetadata |= NumberMetadata.Unsigned;
                 stream.Position++;
-                suffixSize++;
-            }
+                break;
+            case "l":
+                numberMetadata |= NumberMetadata.LongLiteral;
+                stream.Position++;
+                break;
+            default:
+                suffixSize = 0;
+            break;
         }
 
         string raw = sb.ToString();
-        return success(SyntaxKind.NumberToken, stream.Position - raw.Length - suffixSize, raw, numberMetadata);
+        return success(SyntaxKind.NumberToken, stream.Position - raw.Length - suffixSize, raw, (ulong)numberMetadata);
     }
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> lexStringLiteral()
     {
@@ -324,7 +330,7 @@ internal sealed partial class Lexer
     }
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> lexCharLiteral()
     {
-        char val = '\0';
+        char val = stream.Peek();
         stream.Position++;
         int escaped = 0;
         if (stream.Peek() == '\\')
@@ -336,7 +342,6 @@ internal sealed partial class Lexer
             val = escape.Value;
             escaped = 1;
         }
-        else val = stream.Peek();
         stream.Position += 2;
         return success(SyntaxKind.CharLiteral, stream.Position - 3 - escaped, val.ToString());
 
@@ -357,30 +362,31 @@ internal sealed partial class Lexer
                 return '\n';
             case 't':
                 return '\t';
-            case '0' when isChar:
+            case '0':
                 return '\0';
+            default: return null;
         }
-
-        return null;
     }
 
-    private void handleDirective(IDirective dir)
+    private bool handleDirective()
     {
-        switch (dir)
+        if (currDirective == null) 
         {
-            case BranchedDirective branched:
-                if (!branched.Result)
-                {
-                    goto default;
-                }
-                stream.Position = branched.BodyPosition.Position;
-                int endifpos_ = stream.Position + branched.BodyPosition.Length;
-
-                endifPos = new TextPosition(endifpos_, dir.Position.Position + dir.Position.Length - endifpos_);
-                break;
-            default:
-                stream.Position += dir.Position.Length;
-                break;
+            currDirective = preproc.TryParseDirective().Result.Value;
         }
+        else 
+        {
+            // meaning that we're in a branched directive that contained child directives
+            BranchedDirective branched = (BranchedDirective)currDirective;
+
+            parentDirectives.Push((currChildIndex + 1, branched));
+
+            currDirective = branched.Children[currChildIndex];
+            currChildIndex = 0;
+        }
+        if (currDirective is BranchedDirective branched_ && branched_.Result)
+                stream.Position = branched_.BodyPosition.Position;
+        else if (currDirective != null) stream.Position = currDirective.Position.Position + currDirective.Position.Length;
+        return currDirective != null;
     }
 }

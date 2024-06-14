@@ -3,9 +3,7 @@
 
 #### A brief info
 
-The language itself is a non-OOP lang which is translated into a single .il file. 
-Then you can use any IL-disassembler to compile it into a library or executable.
- 
+The language itself is a non-OOP lang which is translated into a .NET assembly. 
 
-#### APPLICATION CONTEXT:
+#### Entrypoint:
 A 'main' function defined throughout the project

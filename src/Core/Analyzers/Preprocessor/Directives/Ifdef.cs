@@ -5,9 +5,8 @@ namespace Pdcl.Core.Preproc;
 
 public sealed class Ifdef : BranchedDirective 
 {
-    public Ifdef(TextPosition header, bool res, IList<IDirective> children, TextPosition bodyPos) 
-        : base("ifdef", header, children, bodyPos)
+    public Ifdef(TextPosition header, bool res, TextPosition bodyPos) 
+        : base("ifdef", header, bodyPos, res)
     {
-        Result = res;
     }
 }

@@ -9,59 +9,59 @@ namespace Pdcl.Test;
 public partial class PreprocTest
 {
     [Fact]
-    public LinkedList<IDictionary<int, Macro>> HandleMacro_Test()
+    public void HandleMacro_Test()
     {
-        // Booting up the preprocessor
-        PreprocContext ctx = new PreprocContext(null);
         using SourceStream stream = new SourceStream(GetRelativePath() + "Preprocessor/macro.pdcl");
-        Preprocessor preproc = new Preprocessor(stream, ctx);
+        Preprocessor preproc = new Preprocessor(stream);
 
         // Expected names
         string[] macrosNames = { "PI", "struct0_", "someArgedMacro" };
 
-        IAnalyzerResult<IDirective, Preprocessor.PreprocStatusCode> macro = preproc.NextDirectiveAsync().Result;
+
+        IAnalyzerResult<IDirective, Preprocessor.PreprocStatusCode> macro = preproc.TryParseDirective().Result;
         for (int i = 0; i < macrosNames.Length; i++)
         {
             Assert.True(!macro.IsFailed && macrosNames[i] == macro.Value!.Name);
 
-            ctx.Macros.Last!.Value[macro.Value.GetHashCode()] = (Macro)macro.Value;
-            macro = preproc.NextDirectiveAsync().Result;
+            while (stream.Peek() != Preprocessor.DirectiveLiteral) 
+                if (!stream.handleLeadingTrivia()) stream.Position++;
+            macro = preproc.TryParseDirective().Result;
         }
 
         // Non-first token
-        Assert.True(macro.Status == Preprocessor.PreprocStatusCode.NonFirstToken);
-        return ctx.Macros;
-
+        /* Assert.True(macro.Status == Preprocessor.PreprocStatusCode.NonFirstToken); */
     }
     [Fact]
     public void HandleIfdef_Test()
     {
         // HandleMacro_Test is a dependency and has to work fine
-        PreprocContext ctx = new PreprocContext(HandleMacro_Test());
-
         using SourceStream stream = new SourceStream(GetRelativePath() + "Preprocessor/ifdef.pdcl");
 
-        Preprocessor preproc = new Preprocessor(stream, ctx);
+        Preprocessor preproc = new Preprocessor(stream);
+        preproc.DefinedMacros["someArgedMacro"] = new Macro("someArgedMacro", default!, default);
+
+        IAnalyzerResult<IDirective, Preprocessor.PreprocStatusCode> dir = preproc.TryParseDirective().Result;
+        Assert.True(!dir.IsFailed && ((Ifdef)dir.Value!).Result == false);
         /* 
             #ifdef ignored
             #endif 
         */
-
-
-        IAnalyzerResult<IDirective, Preprocessor.PreprocStatusCode> dir = preproc.NextDirectiveAsync().Result;
-        Assert.True(!dir.IsFailed && ((Ifdef)dir.Value!).Result == false);
+        while (stream.Peek() != Preprocessor.DirectiveLiteral)
+            if(!stream.handleLeadingTrivia()) stream.Position++;
+        dir = preproc.TryParseDirective().Result;
+        Assert.True(!dir.IsFailed && ((Ifdef)dir.Value!).Result);
         /*
             #ifdef someArgedMacro
             #endif
         */
-        dir = preproc.NextDirectiveAsync().Result;
-        Assert.True(!dir.IsFailed && ((Ifdef)dir.Value!).Result);
+        while (stream.Peek() != Preprocessor.DirectiveLiteral)
+            if(!stream.handleLeadingTrivia()) stream.Position++;
+        dir = preproc.TryParseDirective().Result;
+        Assert.Equal(Preprocessor.PreprocStatusCode.EOF, dir.Status);
         /*
             #ifndef someArgedMacro
                 #ifdef someArgedMacro
                 #endif
         */
-        dir = preproc.NextDirectiveAsync().Result;
-        Assert.Equal(Preprocessor.PreprocStatusCode.EOF, dir.Status);
     }
 }

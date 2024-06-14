@@ -1,2 +1,0 @@
-ERROR(UnsuitableSyntaxToken) at line 3: 
-	Expected SemicolonToken, instead got }(CloseBraceToken)

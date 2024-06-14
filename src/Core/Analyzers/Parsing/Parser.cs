@@ -47,7 +47,7 @@ internal sealed partial class Parser : IDisposable
         var result = lexer.Lex();
 
         if (!result.IsFailed) {
-            if (result.Value!.Value.Kind == SyntaxKind.TriviaToken) 
+            /* if (result.Value!.Value.Kind == SyntaxKind.TriviaToken)  */
                 return ConsumeToken();
             CurrentToken = result.Value!.Value;
         }

@@ -2,18 +2,17 @@ using System.Collections.Immutable;
 using Pdcl.Core.Text;
 namespace Pdcl.Core.Preproc;
 
-public abstract class BranchedDirective : ComplexDirective 
+public abstract class BranchedDirective : IDirective 
 {
-    public bool Result {get; protected set;}
+    public readonly bool Result;
     public readonly TextPosition BodyPosition;
+    public ImmutableList<IDirective> Children {get; init;}
 
-    private ImmutableList<IDirective> children;
-    public BranchedDirective(string name, TextPosition header, IList<IDirective> children, TextPosition bodyPos) : base(name, header)
+#pragma warning disable CS8618
+    public BranchedDirective(string name, TextPosition header, TextPosition bodyPos, bool res) : base(name, header)
     {
-        this.children = children.ToImmutableList();
-
         BodyPosition = bodyPos;
+        Result = res;
     }
-
-    public override ImmutableList<IDirective> GetChildren() => children;
+#pragma warning restore
 }

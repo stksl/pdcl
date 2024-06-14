@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Pdcl.Core.Diagnostics;
 
-public sealed class DiagnosticsBag : IEnumerable<IDiagnostic>
+internal sealed class DiagnosticsBag : IEnumerable<IDiagnostic>
 {
     private List<IDiagnostic> diagnostics;
     public int Count => diagnostics.Count;
