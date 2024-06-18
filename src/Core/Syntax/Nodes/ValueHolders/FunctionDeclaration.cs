@@ -2,19 +2,17 @@ using System.Collections.Immutable;
 
 namespace Pdcl.Core.Syntax;
 
-public class FunctionDeclaration : ValueHolderNode, ISymboled
+public class FunctionDeclaration : ValueHolderNode
 {
     public readonly FunctionSignature Signature;
     public readonly FunctionBody Body;
-
-    public string TableTreePath {get; private set;}
-    public FunctionDeclaration(FunctionSignature sig, FunctionBody body, string tableTreePath) 
-        : base(sig.Name, sig.ReturnType, hasGetter: true, hasSetter: false)
+    public readonly AccessModifiers Mods;
+    public FunctionDeclaration(FunctionSignature sig, FunctionBody body, AccessModifiers mods) 
+        : base(sig.Name, sig.ReturnType)
     {
-        TableTreePath = tableTreePath;
-
         Signature = sig;
         Body = body;
+        Mods = mods;
     }
 
     public override IEnumerable<SyntaxNode> GetChildren()

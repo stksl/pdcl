@@ -3,10 +3,11 @@ namespace Pdcl.Core.Syntax;
 
 public sealed class ConstVarNode : ValueHolderNode
 {
-    public LiteralValue? ConstValue {get; internal set;}
+    public LiteralValue ConstValue {get; init;}
     public ConstVarNode(string name, TypeNode type)
-        : base(name, type, hasGetter: true, hasSetter: false)
+        : base(name, type)
     {
+        HasGetter = true;
     }
     public override IEnumerable<SyntaxNode> GetChildren()
     {

@@ -14,7 +14,7 @@ internal sealed partial class Lexer
         {
             case LexerMode.MacroLexing:
                 _swapStream = stream;
-                stream = new SourceStream(macroSubstitution!.ToCharArray());
+                stream = new SourceStream(macroSubstitution!.ToCharArray()) {IgnoreEOF = true};
                 stream.line = _swapStream.line;
                 break;
             case LexerMode.Default:

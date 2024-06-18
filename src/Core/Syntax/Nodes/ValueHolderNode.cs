@@ -6,16 +6,13 @@ namespace Pdcl.Core.Syntax;
 /// </summary>
 public abstract class ValueHolderNode : SyntaxNode 
 {
-    public readonly bool HasGetter;
-    public readonly bool HasSetter;
+    public bool HasGetter {get; init;}
+    public bool HasSetter {get; init;}
     public readonly string Name;
     public readonly TypeNode Type;
-    public ValueHolderNode(string name, TypeNode type, bool hasGetter, bool hasSetter)
+    public ValueHolderNode(string name, TypeNode type)
     {
         Name = name;
         Type = type;
-
-        HasGetter = hasGetter;
-        HasSetter = hasSetter;
     }
 }

@@ -1,19 +1,20 @@
 using System.Linq.Expressions;
 using Pdcl.Core.Syntax;
 using Pdcl.Core;
+using System.Collections.Immutable;
 namespace Pdcl.Core.Assembly;
 
 public sealed class AssemblyInfo 
 {
     public readonly SymbolTableTree TableTree;
     public readonly AssemblyManifest Manifest;
-    public readonly Dictionary<string, AssemblyInfo> ExternalAssemblies;
-    internal AssemblyInfo(SymbolTableTree tree, AssemblyManifest manifest) 
+    public readonly ImmutableDictionary<string, AssemblyInfo> ExternalAssemblies;
+    internal AssemblyInfo(SymbolTableTree tree, AssemblyManifest manifest, ImmutableDictionary<string, AssemblyInfo> external) 
     {
         TableTree = tree;
         Manifest = manifest;
 
-        ExternalAssemblies = new Dictionary<string, AssemblyInfo>();
+        ExternalAssemblies = external;
     }
     /// <summary>
     /// Searches for symbol globally. prefix '$' is used to define an assembly

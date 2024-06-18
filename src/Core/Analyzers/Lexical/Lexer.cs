@@ -13,20 +13,20 @@ internal sealed partial class Lexer
         MacroLexing = 1, // lexing macro substitution
     }
     public LexerMode Mode {get; private set;}
-    private SourceStream stream;
-    private readonly Preprocessor preproc;
+    internal SourceStream stream {get; private set;}
+    private readonly Preprocessor? preproc;
     private Stack<(int, BranchedDirective)> parentDirectives;
     private IDirective? currDirective;
     private int currChildIndex;
     private string? macroSubstitution; // lexer switches on lexing this field when not null (instead of stream)
     private object _lock = new object();
-
-    public Lexer(SourceStream _stream)
+    public Lexer(SourceStream _stream, bool usePreproc)
     {
         stream = _stream;
-        preproc = new Preprocessor(_stream);
 
         parentDirectives = new Stack<(int, BranchedDirective)>();
+
+        preproc = usePreproc ? new Preprocessor(_stream) : null;
     }
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> success(SyntaxKind kind, int startPos, string raw, ulong metadata = 0)
         => new AnalyzerResult<SyntaxToken?, LexerStatusCode>(
@@ -34,30 +34,25 @@ internal sealed partial class Lexer
                 kind,
                 new LexemeMetadata(new TextPosition(startPos, stream.Position - startPos), stream.line, raw, metadata)),
             LexerStatusCode.Success);
-    private IAnalyzerResult<SyntaxToken?, LexerStatusCode> EOF() =>
-        new AnalyzerResult<SyntaxToken?, LexerStatusCode>(null, LexerStatusCode.EOF);
     public IAnalyzerResult<SyntaxToken?, LexerStatusCode> Lex()
     {
-        lock (_lock)
+        lock (_lock) 
         {
-            return lex();
+            return preproc == null ? fastLex() : lex();
         }
     }
     // starts the lexing pipeline
     /*
         lex() => lexOperators() => lexNonOperators() => lexText() => badToken
     */
-    private IAnalyzerResult<SyntaxToken?, LexerStatusCode> lex()
+    private IAnalyzerResult<SyntaxToken?, LexerStatusCode> lex() // slow lex
     {
         stream.handleLeadingTrivia();
 
-        if (stream.EOF) 
+        if (stream.EOF && Mode == LexerMode.MacroLexing) 
         {
-            if (Mode == LexerMode.MacroLexing) {
-                switchMode(LexerMode.Default);
-                stream.handleLeadingTrivia();
-            }
-            else return EOF();
+            switchMode(LexerMode.Default);
+            stream.handleLeadingTrivia();
         }
 
         int directivePosition = currDirective != null ? currDirective is BranchedDirective branched ? 
@@ -77,9 +72,16 @@ internal sealed partial class Lexer
             } else { currDirective = null; currChildIndex = 0; }
         }
 
-        var result = lexOperators();
-        preproc.firstTokenSeen = true;
+        var result = fastLex();
+        preproc!.firstTokenSeen = true;
         return result;
+    }
+    private IAnalyzerResult<SyntaxToken?, LexerStatusCode> fastLex() // direct lexing
+    {
+        stream.handleLeadingTrivia();
+
+        if (stream.EOF) throw new EndOfStreamException();
+        return lexOperators();        
     }
     private IAnalyzerResult<SyntaxToken?, LexerStatusCode> lexOperators()
     {
@@ -189,7 +191,7 @@ internal sealed partial class Lexer
                 return success(SyntaxKind.OpenBraceToken, stream.Position++, "{");
             case '}':
                 return success(SyntaxKind.CloseBraceToken, stream.Position++, "}");
-            case '#' when Mode == LexerMode.Default: 
+            case '#' when Mode == LexerMode.Default && preproc != null: 
                 
                 if (!handleDirective())
                     return new AnalyzerResult<SyntaxToken?, LexerStatusCode>(null, LexerStatusCode.PreprocError);
@@ -225,7 +227,7 @@ internal sealed partial class Lexer
         string raw = rawText.ToString();
         if (SyntaxKeywords.ContainsKey(raw))
             return lexKeywords(raw);
-        else if (preproc.ContainsMacro(raw, out Macro? macro)) 
+        else if (preproc != null && preproc.ContainsMacro(raw, out Macro? macro)) 
         {
             macroSubstitution = preproc.TryParseMacro(macro!);
 
@@ -250,7 +252,6 @@ internal sealed partial class Lexer
             IAnalyzerResult<SyntaxToken?, LexerStatusCode> res = lexText();
             while (res.Value!.Value.Kind != SyntaxKind.IL_InlineToken)
             {
-                if (stream.EOF) return EOF();
                 sb.Append(res.Value!.Value.Metadata.Raw);
                 stream.handleLeadingTrivia();
                 res = lexText();
@@ -310,7 +311,6 @@ internal sealed partial class Lexer
         StringBuilder rawValue = new StringBuilder();
         while (stream.Peek() != '\"')
         {
-            if (stream.EOF) return EOF();
             // a possible escape sequence
             if (stream.Peek() == '\\')
             {
@@ -370,10 +370,8 @@ internal sealed partial class Lexer
 
     private bool handleDirective()
     {
-        if (currDirective == null) 
-        {
-            currDirective = preproc.TryParseDirective().Result.Value;
-        }
+        if (currDirective == null)
+            currDirective = preproc!.TryParseDirective().Result.Value;
         else 
         {
             // meaning that we're in a branched directive that contained child directives
@@ -384,9 +382,12 @@ internal sealed partial class Lexer
             currDirective = branched.Children[currChildIndex];
             currChildIndex = 0;
         }
-        if (currDirective is BranchedDirective branched_ && branched_.Result)
+
+        if (currDirective is BranchedDirective branched_ && branched_.Result) 
                 stream.Position = branched_.BodyPosition.Position;
-        else if (currDirective != null) stream.Position = currDirective.Position.Position + currDirective.Position.Length;
+        else if (currDirective != null) 
+            stream.Position = currDirective.Position.Position + currDirective.Position.Length;
+
         return currDirective != null;
     }
 }

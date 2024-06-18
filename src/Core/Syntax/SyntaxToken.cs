@@ -3,8 +3,14 @@ using Pdcl.Core.Text;
 namespace Pdcl.Core.Syntax;
 public readonly struct SyntaxToken 
 {
+    public static readonly SyntaxToken Missing;
     public readonly SyntaxKind Kind;
     public readonly LexemeMetadata Metadata;
+
+    static SyntaxToken() 
+    {
+        Missing = new SyntaxToken(SyntaxKind.MissingToken, new LexemeMetadata());
+    }
     public SyntaxToken(SyntaxKind kind, LexemeMetadata metadata)
     {
         Kind = kind;

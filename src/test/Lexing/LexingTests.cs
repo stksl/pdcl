@@ -10,7 +10,7 @@ public sealed class LexingTests
     public void LexingTest_MAIN() 
     {
         using SourceStream stream = new SourceStream(GetRelativePath() + "Lexing/general.pdcl");
-        Lexer lexer = new Lexer(stream);
+        Lexer lexer = new Lexer(stream, false);
 
         SyntaxKind[] kinds = 
         {
@@ -44,24 +44,22 @@ public sealed class LexingTests
             "int32",
             "some_int0"
         };
-        IAnalyzerResult<SyntaxToken?, Lexer.LexerStatusCode> res = lexer.Lex();
         for(int i = 0, j = 0; i < kinds.Length; i++) 
         {
+            IAnalyzerResult<SyntaxToken?, Lexer.LexerStatusCode> res = lexer.Lex();
+
             Assert.Equal(kinds[i], res.Value!.Value.Kind);
             if (kinds[i] == SyntaxKind.TextToken) 
             {
                 Assert.Equal(textTokens[j++], res.Value!.Value.Metadata.Raw);
             }
-            res = lexer.Lex();
         }
-        Assert.True(res.Status == Lexer.LexerStatusCode.EOF);
     }
     [Fact]
     public void IfdefLexing_Test() 
     {
-
         SourceStream stream = new SourceStream(GetRelativePath() + "Lexing/ifdef.pdcl");
-        Lexer lexer = new Lexer(stream);
+        Lexer lexer = new Lexer(stream, true);
 
         // expected
         SyntaxKind[] kinds = 
@@ -84,16 +82,14 @@ public sealed class LexingTests
             SyntaxKind.SemicolonToken,
             SyntaxKind.CloseBraceToken
         };
-
-        IAnalyzerResult<SyntaxToken?, Lexer.LexerStatusCode> res = lexer.Lex();
         for(int i = 0; i < kinds.Length; i++) 
         {
+            IAnalyzerResult<SyntaxToken?, Lexer.LexerStatusCode> res = lexer.Lex();
+
             Assert.Equal(kinds[i], res.Value!.Value.Kind);
-            res = lexer.Lex();
         }
 
-        Assert.True(res.Status == Lexer.LexerStatusCode.EOF);
-
+        Assert.Throws<EndOfStreamException>(lexer.Lex);
         stream.Dispose();
     }
     [Fact]
@@ -116,13 +112,13 @@ public sealed class LexingTests
             SyntaxKind.CloseBraceToken,
 
         };
-        Lexer lexer = new Lexer(stream);
+        Lexer lexer = new Lexer(stream, true);
 
-        IAnalyzerResult<SyntaxToken?, Lexer.LexerStatusCode> res = lexer.Lex();
         for(int i = 0; i < kinds.Length; i++) 
         {
+            IAnalyzerResult<SyntaxToken?, Lexer.LexerStatusCode> res = lexer.Lex();
+
             Assert.Equal(kinds[i], res.Value!.Value.Kind);
-            res = lexer.Lex();
         }
 
         stream.Dispose();
@@ -145,12 +141,12 @@ public sealed class LexingTests
             SyntaxKind.SemicolonToken,
         };
 
-        Lexer lexer = new Lexer(stream);
-        IAnalyzerResult<SyntaxToken?, Lexer.LexerStatusCode> res = lexer.Lex();
+        Lexer lexer = new Lexer(stream, true);
         for(int i = 0; i < kinds.Length; i++) 
         {
+            IAnalyzerResult<SyntaxToken?, Lexer.LexerStatusCode> res = lexer.Lex();
+
             Assert.Equal(kinds[i], res.Value!.Value.Kind);
-            res = lexer.Lex();
         }
         stream.Dispose();
     }

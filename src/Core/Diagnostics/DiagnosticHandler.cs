@@ -5,8 +5,8 @@ namespace Pdcl.Core.Diagnostics;
 
 public interface IDiagnosticHandler
 {
-    ImmutableList<IDiagnostic> Diagnostics {get;}
-
+    ImmutableList<IDiagnostic> Diagnostics { get; }
+    event DiagnosticDelegate? OnDiagnosticReported;
 }
 
 internal sealed class DiagnosticHandler : IDiagnosticHandler
@@ -20,62 +20,86 @@ internal sealed class DiagnosticHandler : IDiagnosticHandler
         diagnostics = new DiagnosticsBag();
     }
 
-    public Task ReportBadToken(int line, SyntaxToken token) 
+    public void ReportBadToken(int line, SyntaxToken token)
     {
-        return reportErrorAsync(
-            new Error(ErrorIdentifier.BadTokenError, $"\'{token.Metadata.Raw}\' was bad token", line));
+        reportError(new Error()
+        {
+            Identifier = (int)ErrorIdentifier.BadTokenError,
+            Description = $"\'{token.Metadata.Raw}\' was bad token",
+            Line = line
+        });
     }
-    public Task ReportUnknownDirectiveDeclaration(int line) 
+    public void ReportUnknownDirectiveDeclaration(int line)
     {
-        return reportErrorAsync(
-            new Error(ErrorIdentifier.UnknownDirectiveDeclaration, $"\'Unknown directive declaration", line));
+        reportError(new Error()
+        {
+            Identifier = (int)ErrorIdentifier.UnknownDirectiveDeclaration,
+            Description = $"\'Unknown directive declaration",
+            Line = line
+        });
     }
-    public Task ReportArgumentsNotInRange(int line, int argsExpected) 
+    public void ReportArgumentsNotInRange(int line, int argsExpected)
     {
-        return reportErrorAsync(
-            new Error(ErrorIdentifier.ArgumentsNotInRange, $"{argsExpected} arguments expected", line));
+        reportError(new Error()
+        {
+            Identifier = (int)ErrorIdentifier.ArgumentsNotInRange,
+            Description = $"{argsExpected} arguments expected",
+            Line = line
+        });
     }
-    public Task ReportUnsuitableSyntaxToken(int line, SyntaxToken actual, SyntaxKind expected) 
+    public void ReportUnsuitableSyntaxToken(int line, SyntaxKind actual, SyntaxKind expected)
     {
-        return reportErrorAsync(new Error(
-            ErrorIdentifier.UnsuitableSyntaxToken, $"Expected {expected}, instead got \'{actual.Metadata.Raw}\'({actual.Kind})", line
-        ));
+        reportError(new Error()
+        {
+            Identifier = (int)ErrorIdentifier.UnsuitableSyntaxToken,
+            Description = $"Expected {expected}, instead got \'{actual}\'",
+            Line = line
+        });
     }
-    public Task ReportIncorrectNamespaceSyntax(int line, string namespaceName) 
+    public void ReportTerminatorExpected(int line, SyntaxKind actual, SyntaxKind expected)
     {
-        return reportErrorAsync(new Error(ErrorIdentifier.IncorrectNamespaceSyntax, $"Incorrect namespace identifier syntax: {namespaceName}", line));
+        reportError(new Error()
+        {
+            Identifier = (int)ErrorIdentifier.TerminatorExpected,
+            Description = $"Expected {expected} terminator, instead got \'{actual}\'",
+            Line = line
+        });
     }
-    public Task ReportUnknownSymbol(int line, string symbolName) 
+    public void ReportIncorrectNamespaceSyntax(int line, string namespaceName)
     {
-        return reportErrorAsync(new Error(ErrorIdentifier.UnknownSymbol, $"Unknown symbol: {symbolName}", line));
+        reportError(new Error() { Identifier = (int)ErrorIdentifier.IncorrectNamespaceSyntax, Description = $"Incorrect namespace identifier syntax: {namespaceName}", Line = line });
     }
-    public Task ReportAlreadyDefined(int line, string name) 
+    public void ReportUnknownSymbol(int line, string symbolName)
     {
-        return reportErrorAsync(new Error(ErrorIdentifier.AlreadyDefined, $"\"{name}\" has already been defined", line));
+        reportError(new Error() { Identifier = (int)ErrorIdentifier.UnknownSymbol, Description = $"Unknown symbol: {symbolName}", Line = line });
     }
-    public Task ReportUnkownOperandSyntax(int line, string operand) 
+    public void ReportAlreadyDefined(int line, string name)
     {
-        return reportErrorAsync(new Error(ErrorIdentifier.UnkownOperandSyntax, $"Unknown operand syntax: {operand}", line));
+        reportError(new Error() { Identifier = (int)ErrorIdentifier.AlreadyDefined, Description = $"\"{name}\" has already been defined", Line = line });
     }
-    public Task ReportUnkownOperationSyntax(int line, string operation) 
+    public void ReportUnkownOperandSyntax(int line, string operand)
     {
-        return reportErrorAsync(new Error(ErrorIdentifier.UnknownOperationSyntax, $"Unknown operation syntax: {operation}", line));
+        reportError(new Error() { Identifier = (int)ErrorIdentifier.UnkownOperandSyntax, Description = $"Unknown operand syntax: {operand}", Line = line });
     }
-    public Task ReportNoArgSeparator(int line) 
+    public void ReportUnkownOperationSyntax(int line, string operation)
     {
-        return reportErrorAsync(new Error(ErrorIdentifier.NoArgSeparator, $"No argument separator", line));
+        reportError(new Error() { Identifier = (int)ErrorIdentifier.UnknownOperationSyntax, Description = $"Unknown operation syntax: {operation}", Line = line });
     }
-    public Task ReportTypeCheck(int line) 
+    public void ReportNoArgSeparator(int line)
     {
-        return reportErrorAsync(new Error(ErrorIdentifier.TypeCheckFailure, $"Type check failure", line));
+        reportError(new Error() { Identifier = (int)ErrorIdentifier.NoArgSeparator, Description = $"No argument separator", Line = line });
     }
-    public Task ReportUnkownAccessMods(int line) 
+    public void ReportTypeCheck(int line)
     {
-        return reportErrorAsync(new Error(ErrorIdentifier.UnkownAccessMods, $"Not a correct access modifier", line));
+        reportError(new Error() { Identifier = (int)ErrorIdentifier.TypeCheckFailure, Description = $"Type check failure", Line = line });
     }
-    private async Task reportErrorAsync(Error err) 
+    public void ReportUnkownAccessMods(int line)
+    {
+        reportError(new Error() { Identifier = (int)ErrorIdentifier.UnkownAccessMods, Description = $"Not a correct access modifier", Line = line });
+    }
+    private void reportError(Error err)
     {
         diagnostics.ReportError(err);
-        await OnDiagnosticReported!.Invoke(err);
+        OnDiagnosticReported!.Invoke(err);
     }
 }

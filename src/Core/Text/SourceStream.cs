@@ -15,12 +15,12 @@ public sealed class SourceStream : ISourceStream, IDisposable
 {
     internal Stream _stream;
     public int line { get; internal set; }
+    public bool IgnoreEOF {get; init;} // throws on false and EOF
     public SourceStream(string path)
     {
         if (!path.EndsWith(".pdcl"))
             throw new ArgumentException("Not a .pdcl file");
         _stream = new FileStream(path, FileMode.Open, FileAccess.Read);
-
     }
     /// <summary>
     /// Saves stream in-memory instead of opening a file
@@ -39,6 +39,7 @@ public sealed class SourceStream : ISourceStream, IDisposable
     public bool EOF => Position >= _stream.Length;
     public char Peek()
     {
+        if (EOF && !IgnoreEOF) throw new EndOfStreamException();
         int pos = Position;
         char c = (char)_stream.ReadByte();
         Position = pos;
@@ -46,6 +47,7 @@ public sealed class SourceStream : ISourceStream, IDisposable
     }
     public char Advance()
     {
+        if (EOF && !IgnoreEOF) throw new EndOfStreamException();
         return (char)_stream.ReadByte();
     }
     public string Advance(int length, out int bytesRead)

@@ -40,7 +40,7 @@ internal sealed partial class Preprocessor
         }
         StringBuilder sb = new StringBuilder();
 
-        while (!stream.EOF && char.IsLetterOrDigit(stream.Peek()) || stream.Peek() == '_')
+        while (char.IsLetterOrDigit(stream.Peek()) || stream.Peek() == '_')
         {
             sb.Append(stream.Advance());
         }
@@ -52,7 +52,7 @@ internal sealed partial class Preprocessor
         if (enclosed) stream.Position++;
         char enclosingToken = enclosed ? ']' : '\n';
         StringBuilder sb = new StringBuilder();
-        while (!stream.EOF && stream.Peek() != enclosingToken)
+        while (stream.Peek() != enclosingToken)
         {
             if (stream.Peek() != ' ')
                 stream.handleLeadingTrivia(handleNewline: enclosed);
@@ -70,7 +70,6 @@ internal sealed partial class Preprocessor
         if (stream.Peek() != DirectiveLiteral)
             return failed<IDirective>(PS_Code.UnmatchingToken, null);
             
-        if (stream.EOF) return failed<IDirective>(PS_Code.EOF, null);
         stream.Position++;
         return await parseDirectiveAsync(useMetadata);
     }
@@ -88,7 +87,7 @@ internal sealed partial class Preprocessor
         StringBuilder passedArg = new StringBuilder();
         for (int i = 0; stream.Peek() != ')'; i++)
         {
-            if (stream.EOF || i > argedMacro.ArgNames.Length) return null;
+            if (i > argedMacro.ArgNames.Length) return null;
 
             while (stream.Peek() != ',')
             {
@@ -165,8 +164,6 @@ internal sealed partial class Preprocessor
         List<IDirective> children = new List<IDirective>();
         do 
         {
-            if (stream.EOF)
-                return failed<Ifdef>(PS_Code.EOF, null);
             while (stream.Peek() != DirectiveLiteral)
                 if (!stream.handleLeadingTrivia()) stream.Position++;
             var child = await TryParseDirective(result); // if the result is false then we're not saving anything else parsed 
@@ -223,7 +220,7 @@ internal sealed partial class Preprocessor
                 argNames.Add(argName!);
                 if (stream.Peek() == ')') break;
 
-                if (stream.EOF || argName == null || stream.Peek() != ',')
+                if (argName == null || stream.Peek() != ',')
                     return new AnalyzerResult<Macro, PS_Code>(null, PS_Code.UnknownDeclaration);
                 
                 stream.Position++;

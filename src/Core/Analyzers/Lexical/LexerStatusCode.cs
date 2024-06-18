@@ -8,6 +8,5 @@ internal sealed partial class Lexer
         OutOfLiteralRange, // when parsing hex or binary numbers
         EscapeExpected, // for string/char literals
         PreprocError,
-        EOF,
     }
 }

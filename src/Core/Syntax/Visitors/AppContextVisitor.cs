@@ -10,7 +10,7 @@ internal sealed class ApplicationContextVisitor : IVisitor<SyntaxTree.Applicatio
     public async Task<SyntaxTree.ApplicationContextNode?> VisitAsync(Parser parser) 
     {
         // getting the root as an app context, directly changing it
-        SyntaxTree.ApplicationContextNode root = (SyntaxTree.ApplicationContextNode)parser.tree!.Root;
+        SyntaxTree.ApplicationContextNode root = parser.tree!.Root;
 
         // checks for all possible top-level nodes, visiting them 
         

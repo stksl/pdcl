@@ -1,11 +1,9 @@
 using System.Text;
-using Pdcl.Core.Syntax.Semantics;
-
 namespace Pdcl.Core.Syntax;
 
-internal static class SyntaxHelper
+internal static class ParserExtensions
 {
-    public static string ParseNamespaceName(Parser parser)
+    public static string ParseNamespaceName(this Parser parser)
     {
         StringBuilder sb = new StringBuilder();
         while (parser.CurrentToken.Kind == SyntaxKind.TextToken)
@@ -17,20 +15,14 @@ internal static class SyntaxHelper
                 parser.ConsumeToken();
             }
         }
-        if (parser.CurrentToken.Kind == SyntaxKind.DotToken)
-        {
-            parser.diagnostics.ReportIncorrectNamespaceSyntax(parser.CurrentToken.Metadata.Line,
-                sb.ToString() + "."
-            );
-        }
         return sb.ToString();
     }
-    public static string? ParseVariableName(Parser parser)
+    public static string? ParseVariableName(this Parser parser)
     {
         if (parser.CurrentToken.Kind != SyntaxKind.TextToken)
         {
             parser.diagnostics.ReportUnsuitableSyntaxToken(
-                parser.CurrentToken.Metadata.Line, parser.CurrentToken, SyntaxKind.TextToken);
+                parser.CurrentToken.Metadata.Line, parser.CurrentToken.Kind, SyntaxKind.TextToken);
             return null;
         }
         if (parser.GetCurrentTableNode().Table!.GetSymbol(parser.CurrentToken.Metadata.Raw, SymbolType.Variable).HasValue)

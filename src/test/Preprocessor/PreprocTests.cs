@@ -15,19 +15,18 @@ public partial class PreprocTest
         Preprocessor preproc = new Preprocessor(stream);
 
         // Expected names
-        string[] macrosNames = { "PI", "struct0_", "someArgedMacro" };
+        string[] macrosNames = { "PI", "struct0_", "someArgedMacro", "NonFirstT" };
 
 
-        IAnalyzerResult<IDirective, Preprocessor.PreprocStatusCode> macro = preproc.TryParseDirective().Result;
         for (int i = 0; i < macrosNames.Length; i++)
         {
-            Assert.True(!macro.IsFailed && macrosNames[i] == macro.Value!.Name);
-
             while (stream.Peek() != Preprocessor.DirectiveLiteral) 
                 if (!stream.handleLeadingTrivia()) stream.Position++;
-            macro = preproc.TryParseDirective().Result;
-        }
 
+            IAnalyzerResult<IDirective, Preprocessor.PreprocStatusCode> macro = preproc.TryParseDirective().Result;
+
+            Assert.True(!macro.IsFailed && macrosNames[i] == macro.Value!.Name);
+        }
         // Non-first token
         /* Assert.True(macro.Status == Preprocessor.PreprocStatusCode.NonFirstToken); */
     }
@@ -56,8 +55,8 @@ public partial class PreprocTest
         */
         while (stream.Peek() != Preprocessor.DirectiveLiteral)
             if(!stream.handleLeadingTrivia()) stream.Position++;
-        dir = preproc.TryParseDirective().Result;
-        Assert.Equal(Preprocessor.PreprocStatusCode.EOF, dir.Status);
+
+        Assert.Throws<AggregateException>(() => preproc.TryParseDirective().Result);
         /*
             #ifndef someArgedMacro
                 #ifdef someArgedMacro

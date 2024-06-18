@@ -1,3 +1,3 @@
 namespace Pdcl.Core.Diagnostics;
 
-public delegate Task DiagnosticDelegate(IDiagnostic diagnostic);
+public delegate void DiagnosticDelegate(IDiagnostic diagnostic);

@@ -23,7 +23,7 @@ public enum SyntaxKind : int
     LessThenToken, // <
     GreaterThenToken, // >
     CaretToken, // ^
-    HashToken, // #
+    // HashToken, // #
     CharLiteral, // '
     StringLiteral, // "
     // bounds
@@ -75,6 +75,5 @@ public enum SyntaxKind : int
     PublicToken,
     PrivateToken,
     AssemblyToken,
-    FamilyToken,
     StaticToken
 }

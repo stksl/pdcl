@@ -6,7 +6,6 @@ internal sealed partial class Preprocessor
     {
         Success = 0,
 
-        EOF,
         UnknownDeclaration,
         NonExistingDirective,
         UnmatchingToken,

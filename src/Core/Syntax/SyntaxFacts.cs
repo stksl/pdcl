@@ -17,10 +17,10 @@ internal static class SyntaxFacts
     }
     public static bool IsOperandKind(SyntaxKind kind) => IsLiteralKind(kind) || kind == SyntaxKind.TextToken;
 
-    public static bool IsPrimitiveType(string name, out PrimitiveTypeNode.PrimitiveTypes? type)
+    public static bool IsPrimitiveType(string name, out PrimitiveTypes? type)
     {
         type = null;
-        foreach (var primitiveType in Enum.GetValues<PrimitiveTypeNode.PrimitiveTypes>())
+        foreach (var primitiveType in Enum.GetValues<PrimitiveTypes>())
         {
             if (primitiveType.ToString().ToLower() == name)
             {
@@ -30,33 +30,18 @@ internal static class SyntaxFacts
         }
         return false;
     }
-    public static bool IsAccessModifier(SyntaxKind kind, SyntaxKind? additional, out AccessModifiers? mods) 
+    public static AccessModifiers? IsAccessModifier(SyntaxKind kind) 
     {
         switch(kind) 
         {
             case SyntaxKind.PublicToken:
-                mods = AccessModifiers.Public;
-                return true;
+                return AccessModifiers.Public;
             case SyntaxKind.PrivateToken:
-                mods = AccessModifiers.Private;
-                if (additional.GetValueOrDefault() == SyntaxKind.FamilyToken) 
-                {
-                    mods |= AccessModifiers.Family;
-                }
-                return true;
-            case SyntaxKind.FamilyToken:
-                mods = AccessModifiers.Family;
-                if (additional.GetValueOrDefault() == SyntaxKind.AssemblyToken) { 
-                    mods |= AccessModifiers.Assembly;
-                }
-                return true;
+                return AccessModifiers.Private;
             case SyntaxKind.AssemblyToken:
-                mods = AccessModifiers.Assembly;
-                return true;
-
+                return AccessModifiers.Assembly;
             default:
-                mods = null;
-                return false;
+                return null;
         }
     }
     public static bool IsBinaryOperator(SyntaxKind kind, out BinaryOperator.BinaryOperators? op_)

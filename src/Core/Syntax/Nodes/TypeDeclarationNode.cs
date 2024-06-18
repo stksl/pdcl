@@ -3,17 +3,14 @@ using System.Collections.Immutable;
 
 namespace Pdcl.Core.Syntax;
 
-public sealed class TypeDeclarationNode : SyntaxNode, ISymboled
+public sealed class TypeDeclarationNode : SyntaxNode
 {
-    public readonly ImmutableArray<FunctionDeclaration> Functions;
+    public readonly ImmutableArray<FunctionMemberDeclaration> Functions;
     public readonly ImmutableArray<FieldDeclaration> Fields;
     public readonly string Name;
-    public string TableTreePath {get; private set;}
-    public TypeDeclarationNode(string name, ImmutableArray<FunctionDeclaration> functions, ImmutableArray<FieldDeclaration> fields,
-        string tableTreePath)
+    public TypeDeclarationNode(string name, ImmutableArray<FunctionMemberDeclaration> functions, ImmutableArray<FieldDeclaration> fields)
     {
         Name = name;
-        TableTreePath = tableTreePath;
 
         Functions = functions;
         Fields = fields;
